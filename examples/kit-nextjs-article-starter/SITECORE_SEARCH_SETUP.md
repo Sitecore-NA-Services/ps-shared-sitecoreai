@@ -52,8 +52,8 @@ This starter includes:
 
 The source created for the new-org build on 2026-09-29 is **solterra-articles**,
 `ea66061d-df98-4f10-9fe0-032e76e6713a`, with fields `title`, `description` (the whole `main` text),
-`author`, `type` and `tags`, single language, no `image` or `date`. Its Vercel project therefore
-sets `NEXT_PUBLIC_SEARCH_FIELD_MAP={"image":"","date":""}` so no date sort is offered.
+`author`, `type` and `tags`, single language, no `image` or `date`. Those two fields are off by
+default, so this source needs no `NEXT_PUBLIC_SEARCH_FIELD_MAP` at all.
 
 Alternatives: a **Content Source** on the Article template indexes published items with their
 real fields and needs no crawl; a **Push Source** takes documents from the Ingestion Service API.
@@ -80,8 +80,8 @@ Copy `.env.remote.example` to `.env.local` (or set them on the hosting platform)
 | --- | --- |
 | `SITECORE_EDGE_CONTEXT_ID`, `NEXT_PUBLIC_SITECORE_EDGE_CONTEXT_ID` | already required by the site; also authenticate search |
 | `NEXT_PUBLIC_SEARCH_INDEX_ID` | source GUID (see step 2) |
-| `NEXT_PUBLIC_SEARCH_FIELD_MAP` | optional map renaming indexed fields, as JSON `{"title":"page_title","date":""}` or `title=page_title,date=` (Deploy variables cannot contain double quotes) |
-| `NEXT_PUBLIC_SEARCH_LOCALE_MAP` | optional map of Sitecore languages to source locale codes, JSON or `en=en,es-MX=es-MX` |
+| `NEXT_PUBLIC_SEARCH_FIELD_MAP` | optional map renaming indexed fields, as JSON `{"title":"page_title","date":"published"}` or `title:page_title date:published`. Use the second form on SitecoreAI Deploy: its variables reject double quotes, and values containing `=` or `,` made the editing-host deployment fail outright. `image` and `date` are off unless mapped. |
+| `NEXT_PUBLIC_SEARCH_LOCALE_MAP` | optional map of Sitecore languages to source locale codes, JSON or `en:en es-MX:es-MX` |
 | `NEXT_PUBLIC_SITEMAP_HOST` | public URL the crawler and sitemap use |
 
 Without `NEXT_PUBLIC_SEARCH_INDEX_ID` (or a datasource) the header renders a plain input that

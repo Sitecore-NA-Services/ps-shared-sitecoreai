@@ -38,7 +38,6 @@
         "LOCALE_DOMAIN_MAP": "@dotenv",
         "NEXT_PUBLIC_SEARCH_INDEX_ID": "ea66061d-df98-4f10-9fe0-032e76e6713a",
         "SITECORE_SEARCH_INDEX_ID": "ea66061d-df98-4f10-9fe0-032e76e6713a",
-        "NEXT_PUBLIC_SEARCH_FIELD_MAP": "image=,date=",
         "AZURE_OPENAI_RESOURCE_NAME": "@dotenv",
         "AZURE_OPENAI_API_KEY": "@dotenv",
         "AZURE_OPENAI_DEPLOYMENT": "@dotenv",
@@ -49,7 +48,7 @@
       "secrets": [
         "AZURE_OPENAI_API_KEY"
       ],
-      "$note": "Embedded SitecoreAI Search since 2026-09-29: the source GUID is the solterra-articles site source on ps-shared-dev (new org). Deploy rejects values with double quotes, so the field map uses key=value pairs. The old CEC variables (NEXT_PUBLIC_SEARCH_* keys/rfkids, SITECORE_SEARCH_* domain settings) were removed from the host once the first build from ps-shared-sitecoreai succeeded."
+      "$note": "Embedded SitecoreAI Search since 2026-09-29: the source GUID is the solterra-articles site source on ps-shared-dev (new org). Do not put values containing '=' or ',' (or double quotes) into Deploy variables: NEXT_PUBLIC_SEARCH_FIELD_MAP=image=,date= made three editing-host deployments fail at the deployment stage. The old CEC variables were removed once the first build from ps-shared-sitecoreai succeeded."
     },
     "kit-nextjs-location-starter": {
       "environmentId": "2Glrfu7E2l3rVDcJMl3WW6",
