@@ -92,22 +92,25 @@ export const SEARCH_SORT_CHOICES: SearchSortChoice[] = [
 
 /**
  * Maps a Sitecore content language ("en", "es-MX") to the locale code the source
- * was created with. Sources list their locales by language tag, so the page
- * language is passed through unchanged; override with `NEXT_PUBLIC_SEARCH_LOCALE_MAP`
- * (`{"es-MX":"es"}`) if a source was created with different codes.
+ * was created with.
+ *
+ * A `locale` is only valid on multi-locale sources, so nothing is sent unless
+ * `NEXT_PUBLIC_SEARCH_LOCALE_MAP` is set. Its JSON maps Sitecore languages to the
+ * source's locale codes, e.g. `{"en":"en","es-MX":"es-MX"}`; languages missing from
+ * the map fall back to the language tag itself. The solterra source created on
+ * 2026-09-29 detected no languages and indexes everything as one language, so the
+ * variable stays unset for it.
  */
 export function toSearchLocale(language?: string | null): string | undefined {
-  if (!language) return undefined;
   const raw = process.env.NEXT_PUBLIC_SEARCH_LOCALE_MAP;
-  if (raw) {
-    try {
-      const map = JSON.parse(raw) as Record<string, string>;
-      if (map[language]) return map[language];
-    } catch {
-      // fall through to the default
-    }
+  if (!raw || !language) return undefined;
+  try {
+    const map = JSON.parse(raw) as Record<string, string>;
+    return map[language] || language;
+  } catch {
+    console.warn('NEXT_PUBLIC_SEARCH_LOCALE_MAP is not valid JSON; locale not sent.');
+    return undefined;
   }
-  return language;
 }
 
 /** True when the app knows which source to query. */
