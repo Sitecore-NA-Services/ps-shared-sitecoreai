@@ -95,7 +95,26 @@ stay.
   finishes.
 - Search Configuration Manager is installed at the org level (Marketplace) but the environment's Apps
   panel showed none yet; authors need it before they can map fields in Page builder.
-- Next: verify /search, typeahead and the chat routes on the new URL once the crawl finishes.
+- Verification of the first build (2026-09-29, afternoon) found three defects, all fixed on this branch and
+  redeployed to `article-starter-sai`:
+  1. `/search` crashed with React error #185 (maximum update depth). `useSearch` keeps its request
+     options in a dependency list, and `SearchResults` passed a fresh `facet: { fields }` object literal
+     on every render, so each response scheduled another request. The `facet` object is now memoised.
+  2. 37 of 85 documents had no `title`, `author`, `type` or `tags`. Next 15.2+ streams `generateMetadata`
+     output and, when it is not ready at first flush, injects `<title>` and the og/article meta into the
+     `<body>`; the crawler extracts "head > title" and head meta only. `next.config.ts` now sets
+     `htmlLimitedBots: /.*/` so every user agent gets blocking metadata (eight concurrent cold fetches
+     all carried the title in `<head>` afterwards).
+  3. `/v1/search/suggest` answers 400 "suggestion is not enabled for this configuration" and no tab of
+     the source (Fields, Source config, Settings, Rules, Preview) exposes a switch for it. The header
+     typeahead now falls back to a `useSearch` preview after the first such error, so it shows top
+     matches without query completions.
+- Also changed: pages without a content type no longer emit `article:section="content"` (that fallback
+  produced a 75-document "content" bucket in the type facet); the crawl config gained a fourth rule,
+  `Disallow contains /Search`, because the sitemap lists `/Search` with a capital S and the existing
+  `/search` rule is case-sensitive. A re-crawl was triggered right after the redeploy.
+- Verified after the fixes: `/search?q=solar` renders results, facets, sort and paging; a question query
+  streams the AI answer above the list; the header typeahead shows preview matches.
 
 ## Order of work
 

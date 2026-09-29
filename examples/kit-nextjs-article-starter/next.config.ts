@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
   // Enable React Strict Mode
   reactStrictMode: true,
 
+  // Serve blocking metadata to every user agent. Next 15.2+ streams the result of
+  // generateMetadata and, when it is not ready by the time the shell flushes,
+  // injects <title> and the og:* / article:* meta into the <body> instead of the
+  // <head>. The SitecoreAI Search crawler (not on Next's built-in bot list) reads
+  // "head > title" and head meta, so under load roughly half the articles were
+  // indexed with no title, author, type or tags. Matching every UA makes the
+  // server wait for metadata before flushing, which costs nothing here because the
+  // same getPage() call already gates the page body.
+  htmlLimitedBots: /.*/,
+
   // Disable the X-Powered-By header. Follows security best practices.
   poweredByHeader: false,
 

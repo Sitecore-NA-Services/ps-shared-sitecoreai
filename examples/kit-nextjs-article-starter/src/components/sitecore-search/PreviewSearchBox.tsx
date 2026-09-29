@@ -7,6 +7,12 @@
  * the visitor types. Submitting (Enter), picking a suggestion, or "View all
  * results" navigates to the full /search page, which runs the real query.
  *
+ * Suggestions are a per-source capability: `/v1/search/suggest` answers 400
+ * "suggestion is not enabled for this configuration" until the platform turns it
+ * on for the source (there is no switch for it in the Search Sources UI as of
+ * 2026-09). The first such error flips this component to a plain `useSearch`
+ * preview (top matches, no query completions) so the typeahead still works.
+ *
  * If no search source is configured, a plain input is rendered that still routes
  * to /search on submit, so the header keeps working without search.
  */
@@ -16,7 +22,7 @@ import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useSitecore } from '@sitecore-content-sdk/nextjs';
-import { useSuggest } from '@sitecore-content-sdk/nextjs/search';
+import { useSearch, useSuggest } from '@sitecore-content-sdk/nextjs/search';
 import type { SearchDocument } from '@sitecore-content-sdk/search';
 import { Input } from '@/components/ui/input';
 import { dictionaryKeys } from '@/variables/dictionary';
@@ -44,14 +50,36 @@ const SuggestSearch = ({ maxPreview = 6 }: { maxPreview?: number }) => {
   const [value, setValue] = useState('');
 
   const active = value.trim().length >= MIN_CHARS;
+  const keyphrase = value.trim();
+  const locale = toSearchLocale(page.locale);
 
-  const { querySuggestions, previewResults, isLoading, isError } = useSuggest<SearchDocument>({
+  // Once the suggest endpoint rejects the source, stop calling it for the rest of
+  // the session and use a plain search as the preview. Adjusting state during
+  // render (not in an effect) is the React-sanctioned way to derive this flag.
+  const [suggestDisabled, setSuggestDisabled] = useState(false);
+
+  const suggest = useSuggest<SearchDocument>({
     searchIndexId: SEARCH_INDEX_ID,
-    query: value.trim(),
-    enabled: active,
+    query: keyphrase,
+    enabled: active && !suggestDisabled,
     keepPreviousData: true,
-    locale: toSearchLocale(page.locale),
+    locale,
   });
+  if (suggest.isError && !suggestDisabled) setSuggestDisabled(true);
+
+  const fallback = useSearch<SearchDocument>({
+    searchIndexId: SEARCH_INDEX_ID,
+    query: keyphrase,
+    pageSize: maxPreview,
+    enabled: active && suggestDisabled,
+    keepPreviousData: true,
+    locale,
+  });
+
+  const querySuggestions = suggestDisabled ? [] : suggest.querySuggestions;
+  const previewResults = suggestDisabled ? fallback.results : suggest.previewResults;
+  const isLoading = suggestDisabled ? fallback.isLoading : suggest.isLoading;
+  const isError = suggestDisabled ? fallback.isError : false;
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();

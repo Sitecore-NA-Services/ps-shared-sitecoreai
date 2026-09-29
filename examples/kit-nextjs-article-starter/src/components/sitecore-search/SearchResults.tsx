@@ -125,14 +125,19 @@ const SearchResultsList = ({
   const sortChoice = SEARCH_SORT_CHOICES.find((c) => c.name === sortName) ?? SEARCH_SORT_CHOICES[0];
 
   // Ask for counts on every facet field and apply the visitor's selections as `eq` filters.
-  const facetFields = useMemo<FacetField[]>(
-    () =>
-      SEARCH_FACET_FIELDS.map((name) => {
+  // The whole `facet` option is memoised: `useSearch` keeps the request options in a
+  // dependency list, so a fresh object literal on every render would re-issue the
+  // request after each response and loop until React gives up (error #185).
+  const facet = useMemo<{ fields: FacetField[] }>(
+    () => ({
+      fields: SEARCH_FACET_FIELDS.map((name) => {
         const values = selected[name];
         return values?.length ? { name, filters: [{ operator: 'eq', value: values }] } : { name };
       }),
+    }),
     [selected]
   );
+  const locale = toSearchLocale(sitecorePage.locale);
 
   const { results, total, totalPages, facets = [], isLoading, isError, isPreviousData } =
     useSearch<SearchDocument>({
@@ -141,8 +146,8 @@ const SearchResultsList = ({
       page: pageNumber,
       pageSize,
       sort: sortChoice.fields.length ? sortChoice.fields : undefined,
-      facet: { fields: facetFields },
-      locale: toSearchLocale(sitecorePage.locale),
+      facet,
+      locale,
       enabled,
       keepPreviousData: true,
     });

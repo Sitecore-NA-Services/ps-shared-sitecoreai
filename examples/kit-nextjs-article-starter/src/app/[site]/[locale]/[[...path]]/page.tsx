@@ -132,8 +132,9 @@ export const generateMetadata = async ({ params }: PageProps) => {
   // (e.g. `<meta property="article:author">`), NOT custom `name=` meta tags.
   // Next renders openGraph.authors -> article:author, openGraph.tags ->
   // article:tag (one per value), and openGraph.section -> article:section.
-  // Only article pages carry these fields; other pages fall back to a neutral
-  // section so the required `type` attribute is always populated.
+  // Only pages with a content type emit article:section; embedded Search has no
+  // required `type` attribute, so pages without one simply have no type facet
+  // value instead of a meaningless "content" bucket.
   const tax = fields as unknown as {
     ArticleAuthor?: { value?: string };
     taxAuthor?: { name?: string };
@@ -163,9 +164,8 @@ export const generateMetadata = async ({ params }: PageProps) => {
       ...(author ? { authors: [author] } : {}),
       // -> one <meta property="article:tag" content="..."> per topic
       ...(topics.length ? { tags: topics } : {}),
-      // -> <meta property="article:section" content="..."> (the content type;
-      //    neutral "content" on non-article pages keeps `type` populated)
-      section: contentType || 'content',
+      // -> <meta property="article:section" content="..."> (the content type)
+      ...(contentType ? { section: contentType } : {}),
     },
   };
 };

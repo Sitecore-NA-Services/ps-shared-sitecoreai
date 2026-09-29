@@ -38,8 +38,9 @@ This starter includes:
    must be the same URL). Keep the discovered sitemap; add `/Articles` as a start URL if article
    detail pages are missing from it.
 4. Locales: pick every language the site publishes (`en`, `es-MX`).
-5. URL pattern filters: **Disallow** `/api`, `/_next`, `/search`, `/Agent-Chat`, `/RAG-Chat` and
-   anything with `sc_mode=edit`.
+5. URL pattern filters: **Disallow** `/api`, `/_next`, `/search`, `/Search`, `/Agent-Chat`,
+   `/RAG-Chat` and anything with `sc_mode=edit`. Rules are case-sensitive and the sitemap uses the
+   Sitecore item names, so match the casing you see in `/sitemap.xml`.
 6. Fields: use **Test Extraction** on one article URL, then keep at least `title`, `description`,
    `image`, `type`, `author`, `tags`, `date`. Mark `title`, `description` and `tags` **Searchable**,
    `type`, `author` and `tags` **Filterable**, `title` and `date` **Sortable**. Field names are
@@ -113,3 +114,14 @@ routes to `/search`, and `/search` shows a "not configured" notice, so the app s
 - Results but empty cards: field names differ from the defaults; set `NEXT_PUBLIC_SEARCH_FIELD_MAP`.
 - Nothing indexed: check the source's Last Index status and that the crawler can reach the site
   (Vercel Deployment Protection must be off for production, or the crawler IPs allow-listed).
+- Some documents have no `title` (cards say "Untitled") although the page has one: Next.js streams
+  `generateMetadata` and may place `<title>` and the og/article meta in the `<body>`, which the
+  crawler ignores. This starter sets `htmlLimitedBots: /.*/` in `next.config.ts` so metadata is
+  always blocking; keep that setting and re-crawl.
+- Header typeahead shows matches but no query completions: `/v1/search/suggest` returns 400
+  "suggestion is not enabled for this configuration". Suggestions are enabled per source by the
+  platform and have no switch in the Search Sources UI yet; the component falls back to a plain
+  search preview until they are on.
+- `/search` shows "There was a problem loading this section": look for React error #185 in the
+  console. Every object passed to `useSearch` (`facet`, `sort`) must be memoised, because the hook
+  re-requests whenever their identity changes.
