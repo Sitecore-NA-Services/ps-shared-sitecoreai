@@ -36,22 +36,9 @@
         "NEXT_PUBLIC_DEFAULT_LANGUAGE": "en",
         "NEXT_PUBLIC_SITEMAP_HOST": "@dotenv",
         "LOCALE_DOMAIN_MAP": "@dotenv",
-        "NEXT_PUBLIC_SEARCH_ENV": "@dotenv",
-        "NEXT_PUBLIC_SEARCH_CUSTOMER_KEY": "@dotenv",
-        "NEXT_PUBLIC_SEARCH_API_KEY": "@dotenv",
-        "NEXT_PUBLIC_SEARCH_RESULTS_RFKID": "@dotenv",
-        "NEXT_PUBLIC_SEARCH_PREVIEW_RFKID": "@dotenv",
-        "NEXT_PUBLIC_SEARCH_QUESTIONS_RFKID": "@dotenv",
-        "NEXT_PUBLIC_SEARCH_SOURCE_IDS": "@dotenv",
-        "SITECORE_SEARCH_API_URL": "@dotenv",
-        "SITECORE_SEARCH_DOMAIN_ID": "@dotenv",
-        "SITECORE_SEARCH_API_KEY": "@dotenv",
-        "SITECORE_SEARCH_API_KEY_HEADER": "@dotenv",
-        "SITECORE_SEARCH_API_KEY_PREFIX": "@dotenv",
-        "SITECORE_SEARCH_WIDGET_ID": "@dotenv",
-        "SITECORE_SEARCH_ENTITY": "@dotenv",
-        "SITECORE_SEARCH_SOURCE_IDS": "@dotenv",
-        "SITECORE_SEARCH_DEFAULT_LOCALE": "@dotenv",
+        "NEXT_PUBLIC_SEARCH_INDEX_ID": "ea66061d-df98-4f10-9fe0-032e76e6713a",
+        "SITECORE_SEARCH_INDEX_ID": "ea66061d-df98-4f10-9fe0-032e76e6713a",
+        "NEXT_PUBLIC_SEARCH_FIELD_MAP": "image=,date=",
         "AZURE_OPENAI_RESOURCE_NAME": "@dotenv",
         "AZURE_OPENAI_API_KEY": "@dotenv",
         "AZURE_OPENAI_DEPLOYMENT": "@dotenv",
@@ -60,11 +47,9 @@
         "RAG_RELEVANCE_THRESHOLD": "@dotenv"
       },
       "secrets": [
-        "NEXT_PUBLIC_SEARCH_API_KEY",
-        "SITECORE_SEARCH_API_KEY",
         "AZURE_OPENAI_API_KEY"
       ],
-      "$note": "Search values still point at the OLD org's Sitecore Search (CEC) domain. That is intentional for now: search is being reworked for the embedded Search in the new SitecoreAI release, so keep the old widgets answering until then."
+      "$note": "Embedded SitecoreAI Search since 2026-09-29: the source GUID is the solterra-articles site source on ps-shared-dev (new org). Deploy rejects values with double quotes, so the field map uses key=value pairs. The old CEC variables (NEXT_PUBLIC_SEARCH_* keys/rfkids, SITECORE_SEARCH_* domain settings) were removed from the host once the first build from ps-shared-sitecoreai succeeded."
     },
     "kit-nextjs-location-starter": {
       "environmentId": "2Glrfu7E2l3rVDcJMl3WW6",
