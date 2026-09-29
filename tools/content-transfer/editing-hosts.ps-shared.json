@@ -1,0 +1,147 @@
+{
+  "$comment": "Editing-host environment variables for the NEW ps-shared org. Keys match the renderingHosts names in xmcloud.build.json. Fill in environmentId from `dotnet sitecore cloud environment list --project-id <new project id>` (decoupled projects give each editing host its own environment ID; leave target empty). For legacy coupled projects put the CM environment ID in environmentId and the rendering host name in target. Values: literal string, \"@dotenv\" (read the same key from the host's dotenv file), or \"$ENV:NAME\" (read from the shell environment). Managed editing hosts already receive SITECORE_EDGE_CONTEXT_ID, NEXT_PUBLIC_SITECORE_EDGE_CONTEXT_ID and SITECORE_EDITING_SECRET from Deploy, so they are not listed; check with `cloud environment variable list` and add them only if missing.",
+  "authoringDir": "../../authoring",
+  "hosts": {
+    "nextjsstarter": {
+      "environmentId": "21Rvl0MjNU2dKFMoBk1OEP",
+      "target": "",
+      "path": "./examples/kit-nextjs-skate-park",
+      "vars": {
+        "NEXT_PUBLIC_DEFAULT_SITE_NAME": "content-sdk-nextjs-skate-park-app-router",
+        "NEXT_PUBLIC_DEFAULT_LANGUAGE": "en"
+      },
+      "secrets": []
+    },
+    "angularstarter": {
+      "environmentId": "1Ot6LCtpDnhUGX3nALZgon",
+      "target": "",
+      "path": "./examples/basic-spa",
+      "vars": {
+        "CSDK_PUBLIC_DEFAULT_SITE_NAME": "angular-skate-park",
+        "CSDK_PUBLIC_DEFAULT_SITE": "angular-skate-park",
+        "SITECORE_DEFAULT_SITE": "angular-skate-park",
+        "CSDK_PUBLIC_DEFAULT_LANGUAGE": "en",
+        "CSDK_PUBLIC_SITECORE_EDGE_CONTEXT_ID": "$ENV:NEW_PREVIEW_CONTEXT_ID"
+      },
+      "secrets": [],
+      "$note": "The Angular build bakes CSDK_PUBLIC_* into environment.prod.ts, so the browser-safe copy of the preview context ID must be set explicitly; Deploy only injects SITECORE_EDGE_CONTEXT_ID."
+    },
+    "kit-nextjs-article-starter": {
+      "environmentId": "5Khhfm4cOSETgUqGUdR9S2",
+      "target": "",
+      "path": "./examples/kit-nextjs-article-starter",
+      "dotenv": "../../examples/kit-nextjs-article-starter/.env.local",
+      "vars": {
+        "NEXT_PUBLIC_DEFAULT_SITE_NAME": "solterra",
+        "NEXT_PUBLIC_DEFAULT_LANGUAGE": "en",
+        "NEXT_PUBLIC_SITEMAP_HOST": "@dotenv",
+        "LOCALE_DOMAIN_MAP": "@dotenv",
+        "NEXT_PUBLIC_SEARCH_ENV": "@dotenv",
+        "NEXT_PUBLIC_SEARCH_CUSTOMER_KEY": "@dotenv",
+        "NEXT_PUBLIC_SEARCH_API_KEY": "@dotenv",
+        "NEXT_PUBLIC_SEARCH_RESULTS_RFKID": "@dotenv",
+        "NEXT_PUBLIC_SEARCH_PREVIEW_RFKID": "@dotenv",
+        "NEXT_PUBLIC_SEARCH_QUESTIONS_RFKID": "@dotenv",
+        "NEXT_PUBLIC_SEARCH_SOURCE_IDS": "@dotenv",
+        "SITECORE_SEARCH_API_URL": "@dotenv",
+        "SITECORE_SEARCH_DOMAIN_ID": "@dotenv",
+        "SITECORE_SEARCH_API_KEY": "@dotenv",
+        "SITECORE_SEARCH_API_KEY_HEADER": "@dotenv",
+        "SITECORE_SEARCH_API_KEY_PREFIX": "@dotenv",
+        "SITECORE_SEARCH_WIDGET_ID": "@dotenv",
+        "SITECORE_SEARCH_ENTITY": "@dotenv",
+        "SITECORE_SEARCH_SOURCE_IDS": "@dotenv",
+        "SITECORE_SEARCH_DEFAULT_LOCALE": "@dotenv",
+        "AZURE_OPENAI_RESOURCE_NAME": "@dotenv",
+        "AZURE_OPENAI_API_KEY": "@dotenv",
+        "AZURE_OPENAI_DEPLOYMENT": "@dotenv",
+        "AZURE_OPENAI_API_VERSION": "@dotenv",
+        "AZURE_OPENAI_EMBEDDING_DEPLOYMENT": "@dotenv",
+        "RAG_RELEVANCE_THRESHOLD": "@dotenv"
+      },
+      "secrets": [
+        "NEXT_PUBLIC_SEARCH_API_KEY",
+        "SITECORE_SEARCH_API_KEY",
+        "AZURE_OPENAI_API_KEY"
+      ],
+      "$note": "Search values still point at the OLD org's Sitecore Search (CEC) domain. That is intentional for now: search is being reworked for the embedded Search in the new SitecoreAI release, so keep the old widgets answering until then."
+    },
+    "kit-nextjs-location-starter": {
+      "environmentId": "2Glrfu7E2l3rVDcJMl3WW6",
+      "target": "",
+      "path": "./examples/kit-nextjs-location-finder",
+      "vars": {
+        "NEXT_PUBLIC_DEFAULT_SITE_NAME": "kit-nextjs-location-starter",
+        "NEXT_PUBLIC_DEFAULT_LANGUAGE": "en",
+        "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": "$ENV:NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"
+      },
+      "secrets": [
+        "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"
+      ]
+    },
+    "kit-nextjs-product-starter": {
+      "environmentId": "2jv7ys3Oy79YPmUPRywHjR",
+      "target": "",
+      "path": "./examples/kit-nextjs-product-listing",
+      "vars": {
+        "NEXT_PUBLIC_DEFAULT_SITE_NAME": "kit-nextjs-product-starter",
+        "NEXT_PUBLIC_DEFAULT_LANGUAGE": "en",
+        "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": "$ENV:NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"
+      },
+      "secrets": [
+        "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"
+      ]
+    },
+    "basic-nextjs": {
+      "environmentId": "20RpOJMzqgt7eZvAaQcALE",
+      "target": "",
+      "path": "./examples/basic-nextjs",
+      "vars": {
+        "NEXT_PUBLIC_DEFAULT_SITE_NAME": "content-sdk-nextjs-app-router",
+        "NEXT_PUBLIC_DEFAULT_LANGUAGE": "en"
+      },
+      "secrets": []
+    },
+    "basic-nextjs-pages-router": {
+      "environmentId": "",
+      "target": "",
+      "path": "./examples/basic-nextjs-pages-router",
+      "enabled": false,
+      "vars": {
+        "NEXT_PUBLIC_DEFAULT_SITE_NAME": "content-sdk-nextjs",
+        "NEXT_PUBLIC_DEFAULT_LANGUAGE": "en"
+      },
+      "secrets": [],
+      "$note": "Disabled in xmcloud.build.json; kept here so the mapping is complete if it is re-enabled."
+    },
+    "lighthouse": {
+      "environmentId": "2DhihJITsVoBx35eJCagyO",
+      "target": "",
+      "path": "./examples/lighthouse",
+      "vars": {
+        "NEXT_PUBLIC_DEFAULT_SITE_NAME": "lighthouse-lifestyle",
+        "NEXT_PUBLIC_DEFAULT_LANGUAGE": "en"
+      },
+      "secrets": []
+    },
+    "round-rock-sasquatch": {
+      "environmentId": "4NToHFbiZDOUt9CymOzAtA",
+      "target": "",
+      "path": "./examples/round-rock-sasquatch",
+      "vars": {
+        "NEXT_PUBLIC_DEFAULT_SITE_NAME": "round-rock-sasquatch",
+        "NEXT_PUBLIC_DEFAULT_LANGUAGE": "en"
+      },
+      "secrets": []
+    }
+  },
+  "project": {
+    "id": "6ikKzMpIaafY5jyybdFX1Y",
+    "name": "ps-shared",
+    "organization": "org_TvFDTrpQmCss41sM",
+    "cmEnvironmentId": "3cwFfa5RDpiL0PdNAvl5Ct",
+    "cmHost": "xmc-cvrams16ca6-psshared3bd6-psshareddev2678.sitecorecloud.io",
+    "previewContextId": "<preview context id: Deploy > Developer settings>",
+    "liveContextId": "7ETztHPRuAjyzd6ySYVGFW"
+  }
+}

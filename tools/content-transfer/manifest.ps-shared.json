@@ -1,0 +1,71 @@
+{
+  "$comment": "Transfer manifest: old ps-shared-dev (org_N4UZdLq5TfZr8k48) -> new ps-shared-dev (org_TvFDTrpQmCss41sM). One Content Transfer per group, run in order. Run `node transfer.mjs discover` first and adjust: every top-level path here must exist on the source, and its parent must exist on the destination with the same item ID (all of these parents are out-of-the-box folders, so they do).",
+  "database": "master",
+  "defaultMergeStrategy": "OverrideExistingItem",
+  "groups": [
+    {
+      "name": "languages",
+      "description": "Custom languages other starters rely on (en-CA, es-MX, ja-JP...). KeepExistingItem so the destination's own 'en' item is never touched.",
+      "mergeStrategy": "KeepExistingItem",
+      "trees": [
+        { "path": "/sitecore/system/Languages", "scope": "ItemAndDescendants" }
+      ]
+    },
+    {
+      "name": "templates",
+      "description": "Project templates and branches for every starter (click-click-launch, nextjs-article_starter, angular-starter, lighthouse, lighthouse-global, lighthouse-demo-sites, round-rock-sasquatch-sites).",
+      "trees": [
+        { "path": "/sitecore/templates/Project", "scope": "ItemAndDescendants" },
+        { "path": "/sitecore/templates/Branches/Project", "scope": "ItemAndDescendants" }
+      ]
+    },
+    {
+      "name": "settings",
+      "description": "Headless SXA module definitions per site collection, and the Lighthouse Lifestyle site template.",
+      "trees": [
+        { "path": "/sitecore/system/Settings/Project", "scope": "ItemAndDescendants" },
+        { "path": "/sitecore/system/Settings/Feature/JSS Experience Accelerator/Lighthouse Lifestyle", "scope": "ItemAndDescendants" }
+      ]
+    },
+    {
+      "name": "layout",
+      "description": "Rendering items, placeholder settings and layouts for every starter.",
+      "trees": [
+        { "path": "/sitecore/layout/Layouts/Project", "scope": "ItemAndDescendants" },
+        { "path": "/sitecore/layout/Renderings/Project", "scope": "ItemAndDescendants" },
+        { "path": "/sitecore/layout/Placeholder Settings/Project", "scope": "ItemAndDescendants" }
+      ]
+    },
+    {
+      "name": "media",
+      "description": "Media library: every site collection's Project folder plus the shared Feature folders the kits use.",
+      "trees": [
+        { "path": "/sitecore/media library/Project", "scope": "ItemAndDescendants" },
+        { "path": "/sitecore/media library/Feature/Alaris", "scope": "ItemAndDescendants" },
+        { "path": "/sitecore/media library/Feature/Solterra", "scope": "ItemAndDescendants" },
+        { "path": "/sitecore/media library/Feature/SYNC", "scope": "ItemAndDescendants" }
+      ]
+    },
+    {
+      "name": "content",
+      "description": "Every site collection and site (site definitions live under Settings/Site Grouping inside each site, so the Sites dashboard picks them up).",
+      "trees": [
+        { "path": "/sitecore/content", "scope": "ItemAndDescendants" }
+      ]
+    },
+    {
+      "name": "spe-scripts",
+      "description": "PowerShell script libraries the starters ship.",
+      "trees": [
+        { "path": "/sitecore/system/Modules/PowerShell/Script Library/Click Click Launch", "scope": "ItemAndDescendants" },
+        { "path": "/sitecore/system/Modules/PowerShell/Script Library/Lighthouse", "scope": "ItemAndDescendants" },
+        { "path": "/sitecore/system/Modules/PowerShell/Script Library/JSS SXA/Lighthouse Lifestyle", "scope": "ItemAndDescendants" }
+      ]
+    }
+  ],
+  "$doNotTransfer": [
+    "/sitecore/system/Settings/Services/Rendering Hosts  - generated from xmcloud.build.json on every authoring deploy and protected; transferring the old ones points Pages at hosts that do not exist in the new org",
+    "/sitecore/system/Settings/Services  - editing secrets and API keys are per environment",
+    "users and roles  - not supported by these APIs; invite through the Cloud Portal"
+  ]
+}

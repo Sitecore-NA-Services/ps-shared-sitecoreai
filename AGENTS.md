@@ -347,6 +347,26 @@ dotnet sitecore ser validate
 - kit-nextjs-product-starter (EH): `wfSShGvbv6WWYpNclzjIe`
 - nextjsstarter (EH): `27j6H8GdZVTINQrBke25RE`
 
+### New SitecoreAI organization (migration in progress, 2026-09)
+- The sites are being moved to a new org with embedded Personalization and Search. The old org above
+  stays live until cutover. Runbook and tooling: `docs/sitecoreai-org-migration.md`,
+  `tools/content-transfer/`.
+- New org: `org_TvFDTrpQmCss41sM`, tenant `cvrams16ca6-psshared3bd6-psshareddev2678`,
+  CM `xmc-cvrams16ca6-psshared3bd6-psshareddev2678.sitecorecloud.io`
+- Deploy project `ps-shared`: `6ikKzMpIaafY5jyybdFX1Y`; CM environment ps-shared-dev: `3cwFfa5RDpiL0PdNAvl5Ct`
+  (base image 1.10, region eus, repo Sitecore-NA-Services/xmcloud-starter-js on `main`, auto deploy)
+- Context IDs: preview see Deploy > ps-shared-dev > Developer settings (Context: Preview), live `7ETztHPRuAjyzd6ySYVGFW`. The editing secret is on the
+  environment's Developer settings page in Deploy; never commit it.
+- Editing hosts (decoupled, one environment each): nextjsstarter `21Rvl0MjNU2dKFMoBk1OEP`,
+  kit-nextjs-article-starter `5Khhfm4cOSETgUqGUdR9S2`, kit-nextjs-location-starter `2Glrfu7E2l3rVDcJMl3WW6`,
+  kit-nextjs-product-starter `2jv7ys3Oy79YPmUPRywHjR`, basic-nextjs `20RpOJMzqgt7eZvAaQcALE`,
+  lighthouse `2DhihJITsVoBx35eJCagyO`, round-rock-sasquatch `4NToHFbiZDOUt9CymOzAtA`,
+  angularstarter `1Ot6LCtpDnhUGX3nALZgon`
+- CLI: `dotnet sitecore cloud login` is now against the new org and the `ps-shared-dev` endpoint in
+  `authoring/.sitecore/user.json` points at the NEW CM. Re-run `cloud login` and `cloud environment connect`
+  with the old IDs above if you need the old CM through the CLI again.
+- Search still targets the old Sitecore Search domain on purpose; it is reworked separately.
+
 ## Additional Context
 
 **Tailwind + Shadcn/ui:**

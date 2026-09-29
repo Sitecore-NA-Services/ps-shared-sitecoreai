@@ -36,6 +36,31 @@
 				"AUTHORING_CLIENT_SECRET": "${input:sitecore-community-mcp-client-secret}",
 				"TOOL_PROFILE": ""
 			}
+		},
+		"sitecore-community-mcp-new": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"@antonytm/mcp-sitecore-server@latest"
+			],
+			"env": {
+				"TRANSPORT": "stdio",
+				"GRAPHQL_ENDPOINT": "https://xmc-cvrams16ca6-psshared3bd6-psshareddev2678.sitecorecloud.io/sitecore/api/graph/",
+				"GRAPHQL_SCHEMAS": "edge",
+				"GRAPHQL_API_KEY": "${input:sitecore-community-mcp-new-graphql-api-key}",
+				"ITEM_SERVICE_DOMAIN": "sitecore",
+				"ITEM_SERVICE_USERNAME": "powershell",
+				"ITEM_SERVICE_PASSWORD": "${input:sitecore-community-mcp-new-item-service-password}",
+				"ITEM_SERVICE_SERVER_URL": "https://xmc-cvrams16ca6-psshared3bd6-psshareddev2678.sitecorecloud.io",
+				"POWERSHELL_DOMAIN": "sitecore",
+				"POWERSHELL_USERNAME": "powershell",
+				"POWERSHELL_PASSWORD": "${input:sitecore-community-mcp-new-powershell-password}",
+				"POWERSHELL_SERVER_URL": "https://xmc-cvrams16ca6-psshared3bd6-psshareddev2678.sitecorecloud.io",
+				"AUTHORING_ENDPOINT": "https://xmc-cvrams16ca6-psshared3bd6-psshareddev2678.sitecorecloud.io/sitecore/api/authoring/graphql/v1/",
+				"AUTHORING_CLIENT_ID": "${input:sitecore-community-mcp-new-client-id}",
+				"AUTHORING_CLIENT_SECRET": "${input:sitecore-community-mcp-new-client-secret}",
+				"TOOL_PROFILE": ""
+			}
 		}
 	},
 	"inputs": [
@@ -66,6 +91,35 @@
 			"id": "sitecore-community-mcp-powershell-password",
 			"type": "promptString",
 			"description": "ps-shared-dev SPE Remoting password",
+			"password": true
+		},
+		{
+			"id": "sitecore-community-mcp-new-client-id",
+			"type": "promptString",
+			"description": "NEW org ps-shared-dev (cvrams16ca6) automation client ID (xmcloud.cm:admin scope)"
+		},
+		{
+			"id": "sitecore-community-mcp-new-client-secret",
+			"type": "promptString",
+			"description": "NEW org ps-shared-dev (cvrams16ca6) automation client secret",
+			"password": true
+		},
+		{
+			"id": "sitecore-community-mcp-new-graphql-api-key",
+			"type": "promptString",
+			"description": "NEW org ps-shared-dev (cvrams16ca6) Edge GraphQL API key ID (include braces)",
+			"password": true
+		},
+		{
+			"id": "sitecore-community-mcp-new-item-service-password",
+			"type": "promptString",
+			"description": "NEW org ps-shared-dev (cvrams16ca6) Item Service password",
+			"password": true
+		},
+		{
+			"id": "sitecore-community-mcp-new-powershell-password",
+			"type": "promptString",
+			"description": "NEW org ps-shared-dev (cvrams16ca6) SPE Remoting password",
 			"password": true
 		}
 	]

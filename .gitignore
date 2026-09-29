@@ -19,3 +19,7 @@ build/
 # Environment files
 .env.local
 .env.*.local
+
+# content-transfer tooling: credentials and per-run reports
+tools/content-transfer/.env.local
+tools/content-transfer/runs/
