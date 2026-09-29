@@ -192,6 +192,17 @@ new org is verified, change `SITECORE_EDGE_CONTEXT_ID`, `NEXT_PUBLIC_SITECORE_ED
 `SITECORE_EDITING_SECRET` per project (`vercel env` from the starter directory) and redeploy.
 Until then production traffic keeps flowing from the old org.
 
+## Repository split (2026-09-29)
+
+The new org no longer builds from this repository. `Sitecore-NA-Services/ps-shared-sitecoreai` was
+created from the `sitecoreai-embedded` branch with full history (tag `old-org-cec-search` marks the
+fork point) and every environment of the new org's Deploy project was relinked to it on `main`: the
+authoring environment through Options > Edit environment details, the eight editing hosts through the
+Deploy API (`DELETE` then `PUT /api/environments/v1/{id}/repository`, since the CLI cannot change a
+repository and the endpoint returns 409 while a repository is linked). Auto-deploy flags were kept as
+they were: on for every editing host except `nextjsstarter`, off for the CM. The old org stays on
+`xmcloud-starter-js` `main`, untouched.
+
 ## Known gaps
 
 - Search: `NEXT_PUBLIC_SEARCH_*` and `SITECORE_SEARCH_*` still target the old Search domain

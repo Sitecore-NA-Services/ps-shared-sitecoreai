@@ -254,11 +254,11 @@ vercel logs <url>      # View logs for a deployment
 - Each starter can be developed and deployed independently
 
 **Git Workflow — single branch:**
-- This repo has one branch: `main`. Commit directly to it.
+- One working branch per repository: `main`. Commit directly to it.
 - Do not create feature branches or open PRs; it is a solo repo, so the
   branch-and-merge overhead buys nothing.
-- Ask before pushing — `main` tracks `origin/main` and pushing is the step that
-  leaves the machine.
+- Ask before pushing — pushing is the step that leaves the machine, and a push to
+  the new repo's `main` auto-deploys seven editing hosts in the new org.
 - `main` is always clean and deployable, so build before committing anything
   that ships (`npm run build` from the starter directory).
 
@@ -365,8 +365,17 @@ dotnet sitecore ser validate
 - CLI: `dotnet sitecore cloud login` is now against the new org and the `ps-shared-dev` endpoint in
   `authoring/.sitecore/user.json` points at the NEW CM. Re-run `cloud login` and `cloud environment connect`
   with the old IDs above if you need the old CM through the CLI again.
-- Search rework lives on branch `sitecoreai-embedded` (tag `old-org-cec-search` marks the CEC state). Vercel:
-  `article-starter` (demo, old org, never redeploy from the branch) and `article-starter-sai`
+- **Two repositories since 2026-09-29.** The old org keeps building `Sitecore-NA-Services/xmcloud-starter-js`
+  on `main` and is left as is. The new org's project (CM plus all eight editing hosts) is linked to
+  `Sitecore-NA-Services/ps-shared-sitecoreai` on `main` (private; forked with full history, tag
+  `old-org-cec-search` marks the split). All embedded-Search work goes to that repo. In this clone the
+  remote is `sitecoreai` and the local branch `sitecoreai-embedded` tracks `sitecoreai/main`
+  (`push.default=upstream`, so plain `git push` goes there); `origin` stays the old repo. Editing hosts
+  other than `nextjsstarter` auto-deploy on every push to the new repo's `main`; the CM does not.
+  Repository links were changed with `PUT /api/environments/v1/{id}/repository` on the Deploy API
+  (unlink with `DELETE` first, body `{repository, repositoryId, integrationId, repositoryBranch,
+  deployOnCommit}`); the CLI has no command for it.
+- Vercel: `article-starter` (demo, old org, never redeploy from this code) and `article-starter-sai`
   (`prj_3eWSyjHllOqjReigIO0RwilqBX3q`, new org, embedded Search source `ea66061d-df98-4f10-9fe0-032e76e6713a`).
   Target Vercel projects by `VERCEL_PROJECT_ID`, never by relinking the starter dir.
 
