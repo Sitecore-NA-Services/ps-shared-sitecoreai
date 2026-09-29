@@ -1,43 +1,29 @@
 /**
- * Server-side query helper for the Sitecore Search runtime API
- * (`POST /discover/v2/{domainId}`), used by the chat API routes to retrieve
- * article content for tool-calling (agent) and RAG grounding.
+ * Server-side retrieval against embedded SitecoreAI Search, used by the chat API
+ * routes (Agent Chat tools, RAG grounding) and the search page's answer route.
  *
- * Reuses the same Search credentials as the front-end SDK widgets
- * (see `src/components/sitecore-search/search-config.ts`), falling back to the
- * dedicated server-only `SITECORE_SEARCH_*` vars when set.
+ * Uses `SearchService` from the Content SDK, the same client the browser hooks
+ * (`useSearch`, `useSuggest`) sit on, so the server and the page query the same
+ * source with the same field names (see
+ * `src/components/sitecore-search/search-config.ts`).
+ *
+ * Authentication is the Edge context id: `SITECORE_EDGE_CONTEXT_ID` on the
+ * server. No API key is involved.
  */
 
-import { toSearchLocale } from '@/lib/search-locale';
+import { SearchService, type FacetField, type SearchDocument } from '@sitecore-content-sdk/search';
+import { SEARCH_FIELDS, SEARCH_INDEX_ID, toSearchLocale } from '@/components/sitecore-search/search-config';
 
-const DOMAIN_ID =
-  process.env.SITECORE_SEARCH_DOMAIN_ID ||
-  process.env.NEXT_PUBLIC_SEARCH_CUSTOMER_KEY?.split('-')[1] ||
-  '';
+const CONTEXT_ID = process.env.SITECORE_EDGE_CONTEXT_ID || process.env.NEXT_PUBLIC_SITECORE_EDGE_CONTEXT_ID || '';
 
-const API_URL = process.env.SITECORE_SEARCH_API_URL || `https://discover.sitecorecloud.io/discover/v2/${DOMAIN_ID}`;
+let service: SearchService | null = null;
 
-const API_KEY = process.env.SITECORE_SEARCH_API_KEY || process.env.NEXT_PUBLIC_SEARCH_API_KEY || '';
-
-const RFK_ID = process.env.SITECORE_SEARCH_WIDGET_ID || process.env.NEXT_PUBLIC_SEARCH_RESULTS_RFKID || '';
-
-/**
- * The `questions_answers` widget auto-created by the Q&A group in
- * CEC > Domain Settings > Feature Configuration > Question & Answer Groups.
- * Separate from RFK_ID: Q&A pairs are NOT part of the `content` entity index,
- * so they are unreachable through a normal content search.
- */
-const QUESTIONS_RFK_ID =
-  process.env.SITECORE_SEARCH_QUESTIONS_WIDGET_ID || process.env.NEXT_PUBLIC_SEARCH_QUESTIONS_RFKID || '';
-
-const ENTITY = process.env.SITECORE_SEARCH_ENTITY || 'content';
-
-const SOURCE_IDS = (process.env.SITECORE_SEARCH_SOURCE_IDS || process.env.NEXT_PUBLIC_SEARCH_SOURCE_IDS || '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-const LOCALE = process.env.SITECORE_SEARCH_DEFAULT_LOCALE || 'en';
+/** Lazily built so a missing context id fails per request, not at import time. */
+function getService(): SearchService | null {
+  if (!CONTEXT_ID || !SEARCH_INDEX_ID) return null;
+  if (!service) service = new SearchService({ contextId: CONTEXT_ID });
+  return service;
+}
 
 export type SearchDoc = {
   id: string;
@@ -48,102 +34,71 @@ export type SearchDoc = {
   relevanceScore?: number;
 };
 
-/** Facet filters supported by the `content` entity's indexed attributes. */
+/** Facet filters supported by the source's filterable fields. */
 export type SearchFacets = {
-  /** Filters on the `type` facet (e.g. "Project Update", "Case Study"). */
+  /** Filters on the content type field (e.g. "Project Update", "Case Study"). */
   contentType?: string;
-  /** Filters on the `author` facet. */
+  /** Filters on the author field. */
   author?: string;
-  /** Filters on the `tags` facet (topics). Matches articles tagged with ANY of the given values. */
+  /** Filters on the tags field (topics). Matches articles tagged with ANY of the given values. */
   tags?: string[];
 };
 
-type FacetTypeRequest = {
-  name: string;
-  filter: { type: 'or'; values: string[] };
+const str = (v: unknown): string | undefined => {
+  if (v == null) return undefined;
+  if (Array.isArray(v)) return v.length ? String(v[0]) : undefined;
+  if (typeof v === 'object') return undefined;
+  return String(v);
 };
 
-// The Search API's `eq` facet filters take an opaque "facetid_<base64>" token,
-// not the raw facet value, even though facet listings expose the raw text.
-// The token is just base64(JSON.stringify({ type: 'eq', name, value })) -
-// reverse-engineered by comparing listSearchFacetValues() output to what the
-// filter API accepts, so we build it ourselves instead of round-tripping.
-function buildFacetId(name: string, value: string): string {
-  const payload = JSON.stringify({ type: 'eq', name, value });
-  return `facetid_${Buffer.from(payload, 'utf-8').toString('base64')}`;
+/** Normalises an indexed document into the small shape the chat prompts use. */
+export function toSearchDoc(doc: SearchDocument): SearchDoc {
+  return {
+    id: str(doc[SEARCH_FIELDS.id]) || str(doc.id) || str(doc[SEARCH_FIELDS.url]) || '',
+    title: str(doc[SEARCH_FIELDS.title]) || str(doc.name) || 'Untitled',
+    description: str(doc[SEARCH_FIELDS.description]),
+    url: str(doc[SEARCH_FIELDS.url]) || str(doc.url),
+  };
 }
 
-/** Builds the `search.facet.types[]` entries for whichever facets were provided. */
-function buildFacetTypes(facets?: SearchFacets): FacetTypeRequest[] | undefined {
-  if (!facets) return undefined;
-  const types: FacetTypeRequest[] = [];
-  if (facets.contentType)
-    types.push({ name: 'type', filter: { type: 'or', values: [buildFacetId('type', facets.contentType)] } });
-  if (facets.author)
-    types.push({ name: 'author', filter: { type: 'or', values: [buildFacetId('author', facets.author)] } });
-  if (facets.tags?.length)
-    types.push({ name: 'tags', filter: { type: 'or', values: facets.tags.map((t) => buildFacetId('tags', t)) } });
-  return types.length ? types : undefined;
+/** Builds the `facet.fields[]` entries for whichever filters were provided. */
+function buildFacetFields(facets?: SearchFacets): FacetField[] {
+  const fields: FacetField[] = [];
+  if (facets?.contentType) fields.push({ name: SEARCH_FIELDS.type, filters: [{ operator: 'eq', value: facets.contentType }] });
+  if (facets?.author) fields.push({ name: SEARCH_FIELDS.author, filters: [{ operator: 'eq', value: facets.author }] });
+  if (facets?.tags?.length) fields.push({ name: SEARCH_FIELDS.tags, filters: [{ operator: 'eq', value: facets.tags }] });
+  return fields;
 }
 
 /**
- * Query the Sitecore Search index and return a small set of article documents.
+ * Query the source and return a small set of article documents.
  * Optional `facets` narrow results by content type, author, and/or topic tags,
  * in addition to the free-text keyphrase. `locale` is the visitor's resolved
- * Sitecore content language (e.g. "es-MX"); defaults to SITECORE_SEARCH_DEFAULT_LOCALE
- * when the caller doesn't know the page locale.
+ * Sitecore content language (e.g. "es-MX").
  */
 export async function querySitecoreSearch(
   keyphrase: string,
   limit = 5,
   facets?: SearchFacets,
-  locale?: string,
+  locale?: string
 ): Promise<SearchDoc[]> {
-  if (!DOMAIN_ID || !API_KEY || !RFK_ID) return [];
+  const svc = getService();
+  if (!svc) return [];
 
-  const facetTypes = buildFacetTypes(facets);
-  const [language, country] = toSearchLocale(locale || LOCALE);
-
-  const body = {
-    context: {
-      locale: { language, country },
-      page: { uri: '/chat' },
-    },
-    widget: {
-      items: [
-        {
-          rfk_id: RFK_ID,
-          entity: ENTITY,
-          ...(SOURCE_IDS.length ? { sources: SOURCE_IDS } : {}),
-          search: {
-            content: {},
-            query: { keyphrase: keyphrase?.trim() || 'the' },
-            ...(facetTypes ? { facet: { types: facetTypes } } : {}),
-            limit,
-            offset: 0,
-          },
-        },
-      ],
-    },
-  };
+  const facetFields = buildFacetFields(facets);
 
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: API_KEY },
-      body: JSON.stringify(body),
+    const { results } = await svc.search({
+      searchIndexId: SEARCH_INDEX_ID,
+      keyphrase: keyphrase?.trim() || undefined,
+      limit,
+      offset: 0,
+      locale: toSearchLocale(locale),
+      ...(facetFields.length ? { facet: { fields: facetFields } } : {}),
     });
-    if (!res.ok) return [];
-    const json = await res.json();
-    const items: Array<{ id: string; name?: string; title?: string; description?: string; url?: string }> =
-      json?.widgets?.[0]?.content ?? [];
-    return items.map((i) => ({
-      id: i.id,
-      title: i.name || i.title || 'Untitled',
-      description: i.description,
-      url: i.url,
-    }));
-  } catch {
+    return results.map(toSearchDoc);
+  } catch (error) {
+    console.warn('[sitecore-search] search failed', error instanceof Error ? error.message : error);
     return [];
   }
 }
@@ -159,64 +114,36 @@ export type FacetValues = {
  * and tags facets, so a caller can discover valid filter values for
  * querySitecoreSearch's `facets` argument before filtering by them.
  */
-export async function listSearchFacetValues(keyphrase = 'the', locale?: string): Promise<FacetValues> {
+export async function listSearchFacetValues(keyphrase = '', locale?: string): Promise<FacetValues> {
   const empty: FacetValues = { contentTypes: [], authors: [], tags: [] };
-  if (!DOMAIN_ID || !API_KEY || !RFK_ID) return empty;
-
-  const [language, country] = toSearchLocale(locale || LOCALE);
-
-  const body = {
-    context: {
-      locale: { language, country },
-      page: { uri: '/chat' },
-    },
-    widget: {
-      items: [
-        {
-          rfk_id: RFK_ID,
-          entity: ENTITY,
-          ...(SOURCE_IDS.length ? { sources: SOURCE_IDS } : {}),
-          search: {
-            content: {},
-            query: { keyphrase },
-            facet: {
-              types: [
-                { name: 'type', max: 20 },
-                { name: 'author', max: 20 },
-                { name: 'tags', max: 30 },
-              ],
-            },
-            // The API rejects limit: 0 ("under minimum allowed value"); 1 is the
-            // smallest valid value and we only care about the `facet` block here.
-            limit: 1,
-            offset: 0,
-          },
-        },
-      ],
-    },
-  };
+  const svc = getService();
+  if (!svc) return empty;
 
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: API_KEY },
-      body: JSON.stringify(body),
+    const { facets = [] } = await svc.search({
+      searchIndexId: SEARCH_INDEX_ID,
+      keyphrase: keyphrase?.trim() || undefined,
+      // Only the facet block matters here; 1 is the smallest page the API accepts.
+      limit: 1,
+      offset: 0,
+      locale: toSearchLocale(locale),
+      facet: {
+        fields: [{ name: SEARCH_FIELDS.type }, { name: SEARCH_FIELDS.author }, { name: SEARCH_FIELDS.tags }],
+      },
     });
-    if (!res.ok) return empty;
-    const json = await res.json();
-    const facetList: Array<{ name: string; value?: Array<{ text: string }> }> = json?.widgets?.[0]?.facet ?? [];
-    const valuesOf = (name: string) => facetList.find((f) => f.name === name)?.value?.map((v) => v.text) ?? [];
+    const valuesOf = (name: string) => facets.find((f) => f.name === name)?.value?.map((v) => String(v.text)) ?? [];
     return {
-      contentTypes: valuesOf('type'),
-      authors: valuesOf('author'),
-      tags: valuesOf('tags'),
+      contentTypes: valuesOf(SEARCH_FIELDS.type),
+      authors: valuesOf(SEARCH_FIELDS.author),
+      tags: valuesOf(SEARCH_FIELDS.tags),
     };
-  } catch {
+  } catch (error) {
+    console.warn('[sitecore-search] facet listing failed', error instanceof Error ? error.message : error);
     return empty;
   }
 }
 
-/** A generated question/answer pair from the Sitecore Search Q&A capability. */
+/** A curated question/answer pair. */
 export type QuestionAnswer = {
   id?: string;
   question: string;
@@ -224,94 +151,29 @@ export type QuestionAnswer = {
 };
 
 export type QuestionsResult = {
-  /** The single best answer to the asked question, when the engine can produce one. */
+  /** The single best answer to the asked question, when one exists. */
   exact?: QuestionAnswer;
-  /** Pre-generated pairs related to the question. */
+  /** Related pairs. */
   related: QuestionAnswer[];
 };
 
 /**
- * Query the Sitecore Search Questions & Answers capability.
+ * Curated questions and answers.
  *
- * Q&A pairs are authored or curated by the site team in the Q&A Browser — some
- * are entered by hand, some are machine-generated and then reviewed, edited or
- * hidden. The runtime response carries no provenance field, so callers cannot
- * tell the two apart and should not claim either in user-facing copy.
- *
- * Either way that curation is invisible to a plain content search, which is the
- * whole reason to call this in addition to `querySitecoreSearch` — Q&A pairs are
- * not part of the `content` entity index, so no phrasing of a content query
- * reaches them.
- *
- * Behaviour notes that are easy to get wrong:
- *  - Scoping comes from the Q&A group config; a request-level `sources` filter is
- *    silently ignored on this widget, so none is sent.
- *  - `exact_answer` must be an empty object. Passing `query_types: ['*']`
- *    suppresses exact-answer generation entirely.
- *  - When no exact answer can be produced the API returns error code 103
- *    (`machine_cannot_generate_answer`) and omits `answer`. That is expected, not
- *    a failure — the related questions are still useful.
- *  - The capability is English-only today, so non-English locales return nothing
- *    rather than a confusing English answer on a Spanish page.
+ * Sitecore Search (CEC) generated and curated Q&A pairs in "Question & Answer
+ * groups"; embedded SitecoreAI Search has no equivalent capability. This keeps
+ * the same contract for the chat tools and the answer route, but returns nothing
+ * until a curated knowledge base exists again, for example as Q&A items indexed
+ * by a content source and mapped here. Callers already treat an empty result as
+ * "no curated answer" and fall back to grounded generation.
  */
 export async function querySitecoreQuestions(
   keyphrase: string,
   relatedLimit = 4,
-  locale?: string,
+  locale?: string
 ): Promise<QuestionsResult> {
-  const empty: QuestionsResult = { related: [] };
-  if (!DOMAIN_ID || !API_KEY || !QUESTIONS_RFK_ID) return empty;
-
-  const trimmed = keyphrase?.trim();
-  // Minimum keyphrase length is 1; an empty one is an API error, not "browse all".
-  if (!trimmed) return empty;
-
-  const [language, country] = toSearchLocale(locale || LOCALE);
-  if (language !== 'en') return empty;
-
-  const body = {
-    context: {
-      locale: { language, country },
-      page: { uri: '/chat' },
-    },
-    widget: {
-      items: [
-        {
-          rfk_id: QUESTIONS_RFK_ID,
-          entity: ENTITY,
-          questions: {
-            keyphrase: trimmed,
-            exact_answer: {},
-            related_questions: { limit: relatedLimit, offset: 0 },
-          },
-        },
-      ],
-    },
-  };
-
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: API_KEY },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return empty;
-    const json = await res.json();
-    const w = json?.widgets?.[0];
-    if (!w) return empty;
-
-    const normalize = (x: { id?: string; question?: string; answer?: string } | undefined) =>
-      x?.question && x?.answer ? { id: x.id, question: x.question, answer: x.answer } : undefined;
-
-    const exact = normalize(w.answer);
-    const related = (w.related_questions ?? [])
-      .map(normalize)
-      .filter((x: QuestionAnswer | undefined): x is QuestionAnswer => !!x)
-      // The exact answer is often also the top related question; don't repeat it.
-      .filter((x: QuestionAnswer) => !exact || x.question !== exact.question);
-
-    return { exact, related };
-  } catch {
-    return empty;
-  }
+  void keyphrase;
+  void relatedLimit;
+  void locale;
+  return { related: [] };
 }

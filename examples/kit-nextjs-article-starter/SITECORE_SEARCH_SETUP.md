@@ -1,157 +1,110 @@
-# Sitecore Search Setup (Article Starter)
+# Search Setup (Article Starter, embedded SitecoreAI Search)
 
-The front end is built on the **Sitecore Search JS SDK for React**
-(`@sitecore-search/react` + `@sitecore-search/ui`), which is Sitecore's
-recommended integration method for React/Next.js apps. The SDK handles
-authentication, queries, and — importantly — the visitor event tracking that
-powers Search analytics and personalization (something a hand-rolled REST proxy
-does not do).
+Search in this starter runs on the **embedded SitecoreAI Search** that ships with the
+platform (Content > Search Sources), through the Content SDK's search API:
+
+- browser: `useSearch`, `useInfiniteSearch`, `useSuggest` from `@sitecore-content-sdk/nextjs/search`
+- server: `SearchService` from `@sitecore-content-sdk/search`
+
+There is no separate search account, customer key, API key or widget id. Requests are
+authenticated with the site's Edge context id, and a **source** (an index plus its
+crawl/field/ranking configuration) is addressed by its GUID.
+
+> Before 2026-09 this starter used Sitecore Search (the CEC domain, `@sitecore-search/react`,
+> `rfkid` widgets). That build is tagged `old-org-cec-search` in git and still runs at
+> https://article-starter.vercel.app. Do not redeploy that project from this branch.
 
 This starter includes:
-- A root provider: `src/components/sitecore-search/SearchProvider.tsx`
-  (wraps the app in the SDK `WidgetsProvider`; mounted in `src/app/layout.tsx`).
-- A header typeahead: `src/components/sitecore-search/PreviewSearchBox.tsx`
-  (`usePreviewSearch`) — submits to `/search` on Enter.
-- A full results page: `src/components/sitecore-search/SearchResults.tsx`
-  (`useSearchResults` with facets, sort, and pagination), rendered at the
-  standalone route `src/app/search/page.tsx` (`/search?q=...`).
 
-> The previous server-side REST proxy (`/api/search/articles`) and fetch-based
-> `ArticleSearchBox` have been removed in favor of the SDK.
+- Header typeahead: `src/components/sitecore-search/PreviewSearchBox.tsx` (`useSuggest`).
+- Results page: `src/components/sitecore-search/SearchResults.tsx` (`useSearch` with facets,
+  sort and pagination), a Sitecore rendering placed on the `/search` page.
+- Question panel: `src/components/sitecore-search/SearchQuestions.tsx`, which asks
+  `/api/search-answer` for a grounded answer when the query reads as a question.
+- Server retrieval: `src/lib/sitecore-search-query.ts` (`SearchService`), shared by the answer
+  route and the Agent Chat / RAG Chat routes.
+- The generic `SearchExperience` rendering from the official starter kit in
+  `src/components/search-experience/`, kept verbatim so it stays diffable against upstream.
+- Shared configuration: `src/components/sitecore-search/search-config.ts`.
 
-## 1) Configure environment variables
+## 1) Create the source
 
-Sitecore Search is called from the browser with a domain-scoped key, so the SDK
-config uses public (`NEXT_PUBLIC_*`) variables. Copy `.env.remote.example` to
-`.env.local` and set:
+1. In SitecoreAI, open **Content > Search Sources** and click **Create Source**. The allowance
+   is counted per organization ("View source usage"); if the button is disabled, another
+   environment has to release a source first.
+2. Choose **Site Source** for this starter. Enter the public URL of the rendering host (for the
+   new-org build, `https://article-starter-sai.vercel.app`), confirm, pick a re-index schedule.
+3. Indexing rules: the starter serves `/sitemap.xml` (driven by `NEXT_PUBLIC_SITEMAP_HOST`, which
+   must be the same URL). Keep the discovered sitemap; add `/Articles` as a start URL if article
+   detail pages are missing from it.
+4. Locales: pick every language the site publishes (`en`, `es-MX`).
+5. URL pattern filters: **Disallow** `/api`, `/_next`, `/search`, `/Agent-Chat`, `/RAG-Chat` and
+   anything with `sc_mode=edit`.
+6. Fields: use **Test Extraction** on one article URL, then keep at least `title`, `description`,
+   `image`, `type`, `author`, `tags`, `date`. Mark `title`, `description` and `tags` **Searchable**,
+   `type`, `author` and `tags` **Filterable**, `title` and `date` **Sortable**. Field names are
+   yours to choose; if they differ from those defaults, set `NEXT_PUBLIC_SEARCH_FIELD_MAP`
+   (see step 3).
+7. Advanced settings: turn on semantic reranking and fuzzy search, then **Save**. Wait for the
+   first crawl to finish (the source shows *Succeeded* under Last Index).
+8. Copy the source GUID from the source's details page.
 
-- `NEXT_PUBLIC_SEARCH_ENV` — `prod` | `prodEu` | `apse2`
-- `NEXT_PUBLIC_SEARCH_CUSTOMER_KEY` — from CEC → **Developer Resources**
-- `NEXT_PUBLIC_SEARCH_API_KEY` — from CEC → **Developer Resources**
-- `NEXT_PUBLIC_SEARCH_RESULTS_RFKID` — rfkId of your **Search Results** widget
-- `NEXT_PUBLIC_SEARCH_PREVIEW_RFKID` — rfkId of your **Preview Search** widget
-- `NEXT_PUBLIC_SEARCH_LANGUAGE` / `NEXT_PUBLIC_SEARCH_COUNTRY` — optional locale
-  override (defaults to `en` / `us`)
+Alternatives: a **Content Source** on the Article template indexes published items with their
+real fields and needs no crawl; a **Push Source** takes documents from the Ingestion Service API.
+Both plug into the same code, only the field names differ.
 
-If these are not set, the header renders a plain input that routes to `/search`,
-and `/search` shows a "not configured" notice — so the app still builds and runs.
+## 2) Tell the app which source to use
 
-### Locale is required
+Two ways, and they can coexist:
 
-If your domain has locale settings enabled, every request must include
-`context.locale` or the API returns `400 — required context.locale missing`.
-`SearchProvider` sets it once at the page level via the SDK's `PageController`:
+- **Datasource item (authors):** install the **Search Configuration Manager** app from the
+  Marketplace (Apps > Explore marketplace), give the `SearchResults` rendering a datasource whose
+  `search` field is a Plugin field sourced to that app, and pick the source and field mapping on
+  the component's *Search Configuration* tab in Page builder. The JSON stored is
+  `{ "searchIndex": "<guid>", "fieldsMapping": { "title": "...", ... } }`.
+- **Environment variable (everything else):** set `NEXT_PUBLIC_SEARCH_INDEX_ID=<guid>`. The header
+  typeahead and the server routes always use this; the results rendering uses it when it has no
+  datasource.
 
-```ts
-PageController.getContext().setLocaleLanguage('en');
-PageController.getContext().setLocaleCountry('us');
-```
+## 3) Environment variables
 
-### Multi-site: scoping results to one site
+Copy `.env.remote.example` to `.env.local` (or set them on the hosting platform):
 
-A Search **domain has a single shared index** that every **source** feeds — you do
-not create per-site indexes. Sitecore's recommended multi-site pattern is:
+| Variable | Purpose |
+| --- | --- |
+| `SITECORE_EDGE_CONTEXT_ID`, `NEXT_PUBLIC_SITECORE_EDGE_CONTEXT_ID` | already required by the site; also authenticate search |
+| `NEXT_PUBLIC_SEARCH_INDEX_ID` | source GUID (see step 2) |
+| `NEXT_PUBLIC_SEARCH_FIELD_MAP` | optional JSON renaming indexed fields, e.g. `{"title":"page_title","date":""}` |
+| `NEXT_PUBLIC_SEARCH_LOCALE_MAP` | optional JSON mapping Sitecore languages to source locale codes |
+| `NEXT_PUBLIC_SITEMAP_HOST` | public URL the crawler and sitemap use |
 
-> **One source per site**, all in one domain, and **filter results by source**.
+Without `NEXT_PUBLIC_SEARCH_INDEX_ID` (or a datasource) the header renders a plain input that
+routes to `/search`, and `/search` shows a "not configured" notice, so the app still builds.
 
-So this starter scopes its widgets to its own source via
-`NEXT_PUBLIC_SEARCH_SOURCE_IDS` (comma-separated source IDs from **Sources** in the
-console). The query hooks apply it with the SDK's `setSources`:
+## 4) Validate end to end
 
-```ts
-query.getRequest().setSources(['1260103']); // this site's source only
-```
+1. `npm run dev` in this folder, open the site, type in the header search: suggestions and
+   preview results should appear after two characters.
+2. Open `/search?q=solar`: results, facet counts and sorting should respond; select a facet and
+   the counts should update.
+3. Ask a question (`/search?q=how do solar panels work`): the answer panel streams in above the
+   list. It is generated by Azure OpenAI from the top search results and hides itself when the
+   articles do not cover the question.
+4. Open Agent Chat and RAG Chat: both retrieve through `src/lib/sitecore-search-query.ts`.
 
-Without it, the widgets return content from *every* source sharing the domain.
-You can instead scope a widget in the console with a variation rule (no redeploy).
-Use a **separate domain** per site only when sites are truly independent (different
-data models, isolation, or no cross-site search) — it's heavier and loses cross-site
-search and shared analytics.
+## Differences from the CEC integration
 
-### Widgets and facets
+- No curated Q&A groups. `querySitecoreQuestions()` returns nothing until a curated knowledge
+  base exists again (a Q&A content source is the natural fit).
+- No visitor events or personalization from the search layer.
+- Sorting is by indexed fields you mark Sortable, not by console-configured sort options.
+- Facet filters are plain field values (`eq`), not opaque facet ids.
 
-In the Sitecore Search console, create (or confirm) two widgets for the
-`content` entity and copy their `rfkId`s into the env vars above:
-- a **Search Results** widget (for `/search`), and
-- a **Preview Search** widget (for the header typeahead).
+## Troubleshooting
 
-Facets on `/search` are driven by the **facet attributes enabled on the Search
-Results widget** in the console — the UI renders whatever facets the API returns,
-so enabling a facet (e.g. content type, topics, author) needs no code change.
-
-## 2) Create your Search source and crawler
-
-In Sitecore Search Admin:
-
-1. Create a web source for your rendering host (for example your Vercel URL).
-2. Choose the **Advanced Web Crawler**.
-3. Set **Allowed Domains** to your rendering host domain (for example `article-starter.vercel.app`).
-4. Open **Triggers** and add seed URLs (absolute URLs), then save and publish:
-   - `https://article-starter.vercel.app/`
-   - `https://article-starter.vercel.app/Articles`
-5. Increase **Max Depth** to `4` or `5` so the crawler can discover article detail pages from the listing page.
-6. Configure exclusions for utility paths:
-   - `/api/**`
-   - `/_next/**`
-   - `/**?sc_mode=edit*`
-7. Run a test crawl and then a full crawl.
-
-Note: In some Search Admin versions, you may not see a field named "Start URLs". Use **Triggers** for crawl entry points.
-
-## 2.1) Fix sitemap-first crawling (if article URLs are missing from sitemap.xml)
-
-If `https://article-starter.vercel.app/sitemap.xml` does not include article detail URLs, fix sitemap coverage in XM Cloud before relying on sitemap-only crawl.
-
-1. In XM Cloud Content Editor, open your site article pages under `/sitecore/content/.../Home/Articles/*`.
-2. For article detail pages, ensure they are not excluded from sitemap (look for fields such as "Exclude from sitemap" and disable exclusion).
-3. Publish the updated article pages.
-4. Recheck `https://article-starter.vercel.app/sitemap.xml` and verify article detail URLs are present.
-5. If sitemap is still incomplete, continue crawling from `https://article-starter.vercel.app/Articles` via Triggers.
-
-## 3) Configure entity mapping
-
-Map crawler fields to your article entity schema. Typical mappings:
-- `title` <- article title/headline
-- `url` <- canonical page URL
-- `description` or `summary` <- page summary/meta description
-- `image` <- article thumbnail/open graph image
-- `topics` <- taxonomy topics
-- `contentType` <- content type taxonomy
-- `author` <- author taxonomy
-
-If your widget returns different keys, update normalization in `route.ts`.
-
-For this starter integration, ensure your entity mapping and widget response include these fields:
-- `title`
-- `url`
-- `summary` or `description`
-- `image`
-- `author`
-- `contentType`
-- `topics` (array preferred, comma-separated string also supported)
-
-## 4) Create and configure a search widget
-
-In Sitecore Search:
-1. Create a query widget for the target entity.
-2. Copy the widget id (`rfkid`) into `SITECORE_SEARCH_WIDGET_ID`.
-3. Make sure the widget query is configured to return article fields (title/url/summary/image).
-   Include `author`, `contentType`, and `topics` in widget response fields.
-4. Publish widget changes.
-
-## 5) Validate end-to-end
-
-1. Start the app with `npm run dev` in this starter folder.
-2. Open the site and use the header search input.
-3. Confirm requests to `/api/search/articles` return results.
-4. If no results are returned, verify:
-   - Crawl completed and source is healthy
-   - Widget is querying the correct source/entity
-   - `rfk.domainId` and `rfkid` are correct
-   - API URL and auth headers are correct
-
-## Troubleshooting tips
-
-- `502` from `/api/search/articles`: upstream Search API request failed. Check endpoint, headers, key, and domain id.
-- Empty result set with `200`: source may not be crawled/indexed yet, or widget filters are too strict.
-- Bad links in results: verify `url` field mapping in entity extraction.
+- `Search index ID is required`: the source GUID is missing (env or datasource).
+- Requests return 400 mentioning locale: the source was created with fewer locales than the site
+  publishes; add the locale to the source or map it with `NEXT_PUBLIC_SEARCH_LOCALE_MAP`.
+- Results but empty cards: field names differ from the defaults; set `NEXT_PUBLIC_SEARCH_FIELD_MAP`.
+- Nothing indexed: check the source's Last Index status and that the crawler can reach the site
+  (Vercel Deployment Protection must be off for production, or the crawler IPs allow-listed).

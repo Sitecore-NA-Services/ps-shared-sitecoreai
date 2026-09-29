@@ -1,34 +1,34 @@
 'use client';
 
 /**
- * Full search-results experience built on the Sitecore Search JS SDK for React,
- * packaged as a Sitecore rendering (`Default` export) so it can be placed on a
- * Sitecore page and inherits the site layout + design system.
+ * Full search-results experience on embedded SitecoreAI Search, packaged as a
+ * Sitecore rendering (`Default` export) so it can be placed on a Sitecore page
+ * and inherit the site layout + design system.
  *
  * Best-practice notes (this file is a teaching reference):
- *  - Data + analytics come from the SDK query hook `useSearchResults`. The hook
- *    manages keyphrase, paging, sorting and facet selection state for you and —
- *    crucially — emits the visitor events (via the WidgetsProvider) that power
- *    Search analytics and personalization.
+ *  - Data comes from the Content SDK query hook `useSearch`. Keyphrase, paging,
+ *    sorting and facet selection are ordinary React state here; the hook turns
+ *    them into one request against the source and returns results, total and
+ *    facet counts. Authentication is the Edge context id the app already has.
+ *  - Which source to query comes from the datasource item: the Search
+ *    Configuration Manager app writes `{ searchIndex, fieldsMapping }` JSON into
+ *    the item's `search` field. When the rendering has no datasource the
+ *    `NEXT_PUBLIC_SEARCH_INDEX_ID` fallback is used.
  *  - The UI uses the site design system (shadcn primitives in `@/components/ui`
  *    and brand tokens) and a `colorScheme` rendering parameter, mirroring the
  *    pattern used by the Hero rendering.
- *  - The keyphrase comes from the `?q=` query string; facets are requested
- *    explicitly in code (content type / author / topics).
+ *  - The keyphrase comes from the `?q=` query string; facets are the fields the
+ *    source marks Filterable (content type / author / topics by default).
  */
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { cva } from 'class-variance-authority';
-import {
-  WidgetDataType,
-  useSearchResults,
-  useSearchResultsSelectedFacets,
-  widget,
-  type SearchResultsInitialState,
-} from '@sitecore-search/react';
 import { useTranslations } from 'next-intl';
+import { useSitecore } from '@sitecore-content-sdk/nextjs';
+import { useSearch } from '@sitecore-content-sdk/nextjs/search';
+import type { FacetField, SearchDocument } from '@sitecore-content-sdk/search';
 import { cn } from '@/lib/utils';
 import { dictionaryKeys } from '@/variables/dictionary';
 import { Button } from '@/components/ui/button';
@@ -41,62 +41,54 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { ComponentProps } from '@/lib/component-props';
-import { SEARCH_SOURCE_IDS } from './search-config';
-import { SearchQuestionsPanel } from './SearchQuestions';
 import { useLocalizeHref } from '@/lib/localize-href';
+import { useSearchField } from '@/components/search-experience/search-components/useSearchField';
+import { SearchQuestionsPanel } from './SearchQuestions';
+import {
+  SEARCH_FACET_FIELDS,
+  SEARCH_FIELDS,
+  SEARCH_INDEX_ID,
+  SEARCH_SORT_CHOICES,
+  isSearchConfigured,
+  toSearchLocale,
+  type SearchSortChoice,
+} from './search-config';
 
-/** Index document shape (attributes configured on the `content` entity). */
-type ArticleModel = {
-  id: string;
-  type?: string;
-  title?: string;
-  name?: string;
-  description?: string;
-  url?: string;
-  image_url?: string;
-  author?: string;
-  source_id?: string;
+type SearchResultsProps = ComponentProps & {
+  fields?: {
+    /** JSON written by the Search Configuration Manager app: `{ searchIndex, fieldsMapping }`. */
+    search?: { value?: string };
+  };
 };
-
-type FacetValue = { id: string; text: string; count: number };
-type Facet = { name: string; label: string; value: FacetValue[] };
-type SortChoice = { name: string; label: string };
-
-type SearchResultsProps = {
-  defaultKeyphrase?: string;
-  defaultItemsPerPage?: number;
-};
-
-type InitialState = SearchResultsInitialState<'itemsPerPage' | 'keyphrase' | 'page'>;
-
-const titleOf = (a: ArticleModel) => a.name || a.title || 'Untitled';
 
 type Translator = ReturnType<typeof useTranslations>;
 
-/** Maps the raw sort option names returned by the widget to dictionary keys. */
-const SORT_KEYS: Record<string, string> = {
-  featured_desc: dictionaryKeys.SEARCH_SORT_RELEVANCE,
-  featured_asc: dictionaryKeys.SEARCH_SORT_RELEVANCE_ASC,
-  name_asc: dictionaryKeys.SEARCH_SORT_TITLE_AZ,
-  name_desc: dictionaryKeys.SEARCH_SORT_TITLE_ZA,
+/** Dictionary keys for the fixed sort choices. */
+const SORT_KEYS: Record<SearchSortChoice['name'], string> = {
+  relevance: dictionaryKeys.SEARCH_SORT_RELEVANCE,
+  title_asc: dictionaryKeys.SEARCH_SORT_TITLE_AZ,
+  title_desc: dictionaryKeys.SEARCH_SORT_TITLE_ZA,
   date_desc: dictionaryKeys.SEARCH_SORT_NEWEST,
   date_asc: dictionaryKeys.SEARCH_SORT_OLDEST,
 };
-const sortLabelOf = (c: SortChoice, t: Translator) =>
-  SORT_KEYS[c.name]
-    ? t(SORT_KEYS[c.name])
-    : c.label && c.label !== c.name
-      ? c.label
-      : c.name.replace(/_/g, ' ');
 
-/** Maps the raw facet attribute names returned by the widget to dictionary keys. */
-const FACET_KEYS: Record<string, string> = {
-  type: dictionaryKeys.SEARCH_FACET_CONTENT_TYPE,
-  tags: dictionaryKeys.SEARCH_FACET_TOPICS,
-  author: dictionaryKeys.SEARCH_FACET_AUTHOR,
+/** Dictionary keys for the facet fields this experience exposes. */
+const facetLabelOf = (name: string, t: Translator) => {
+  if (name === SEARCH_FIELDS.type) return t(dictionaryKeys.SEARCH_FACET_CONTENT_TYPE);
+  if (name === SEARCH_FIELDS.tags) return t(dictionaryKeys.SEARCH_FACET_TOPICS);
+  if (name === SEARCH_FIELDS.author) return t(dictionaryKeys.SEARCH_FACET_AUTHOR);
+  return name.replace(/[_-]/g, ' ');
 };
-const facetLabelOf = (f: Facet, t: Translator) =>
-  FACET_KEYS[f.name] ? t(FACET_KEYS[f.name]) : f.label || f.name;
+
+const text = (doc: SearchDocument, field: string): string | undefined => {
+  const v = doc[field];
+  if (v == null) return undefined;
+  if (Array.isArray(v)) return v.length ? String(v[0]) : undefined;
+  if (typeof v === 'object') return undefined;
+  return String(v);
+};
+
+type SelectedFacets = Record<string, string[]>;
 
 const ResultsSkeleton = () => (
   <div className="grid gap-4">
@@ -110,272 +102,247 @@ const ResultsSkeleton = () => (
   </div>
 );
 
-const SearchResultsComponent = ({
-  defaultKeyphrase = '',
-  defaultItemsPerPage = 10,
-}: SearchResultsProps) => {
+const SearchResultsList = ({
+  searchIndexId,
+  keyphrase,
+  pageSize = 10,
+  enabled,
+}: {
+  searchIndexId: string;
+  keyphrase: string;
+  pageSize?: number;
+  enabled: boolean;
+}) => {
   const t = useTranslations();
-  const {
-    widgetRef,
-    actions: { onPageNumberChange, onItemClick, onSortChange, onFacetClick, onClearFilters, onKeyphraseChange },
-    state: { sortType, page, itemsPerPage, keyphrase },
-    queryResult: {
-      isLoading,
-      isFetching,
-      data: {
-        total_item: totalItems = 0,
-        sort: { choices: sortChoices = [] as SortChoice[] } = {},
-        facet: facets = [] as Facet[],
-        content: articles = [] as ArticleModel[],
-      } = {},
-    },
-  } = useSearchResults<ArticleModel, InitialState>({
-    query: (query) => {
-      const request = query.getRequest();
-      // Scope results to this site's source(s). The domain index is shared across
-      // sites, so without this the widget would return every site's content.
-      if (SEARCH_SOURCE_IDS.length) request.setSources(SEARCH_SOURCE_IDS);
-      // Request the facets this experience exposes. The widget's default facet set
-      // (content type + topics) does not include author, so request an explicit list
-      // instead of "all" — this renders the Author filter without a console change.
-      // Each name must be a facet-enabled attribute on the `content` entity in Search.
-      request.setSearchFacetAll(false);
-      request.setSearchFacetTypes([
-        { name: 'type', max: 20 },
-        { name: 'author', max: 20 },
-        { name: 'tags', max: 20 },
-      ]);
-      return query;
-    },
-    state: {
-      keyphrase: defaultKeyphrase,
-      page: 1,
-      itemsPerPage: defaultItemsPerPage,
-    },
-  });
+  const { page: sitecorePage } = useSitecore();
 
-  // `useSearchResults` only applies `state.keyphrase` on first init. Header submit
-  // on this page is a same-route `?q=` change, so without this the widget keeps the
-  // empty browse query (the full 60-document index) for every subsequent search.
-  useEffect(() => {
-    if ((defaultKeyphrase || '') === (keyphrase || '')) return;
-    onKeyphraseChange({ keyphrase: defaultKeyphrase });
-  }, [defaultKeyphrase, keyphrase, onKeyphraseChange]);
+  // Paging, sorting and filters belong to one keyphrase. The parent remounts this
+  // component (via `key`) when the keyphrase changes, so a new search starts clean.
+  const [pageNumber, setPageNumber] = useState(1);
+  const [sortName, setSortName] = useState<SearchSortChoice['name']>('relevance');
+  const [selected, setSelected] = useState<SelectedFacets>({});
 
-  // Build a lookup of currently-selected facet values so we can mark checkboxes.
-  // Selected values are keyed by `facetValueId` (the `facetid_…` token), which matches
-  // the `id` on each facet value returned in the results — NOT a plain `id` field.
-  const selectedFacets = useSearchResultsSelectedFacets();
-  const selectedSet = new Set<string>();
-  selectedFacets.forEach((f) =>
-    (f.values as Array<{ facetValueId?: string }>)?.forEach((v) => {
-      if (v?.facetValueId) selectedSet.add(`${f.id}:${v.facetValueId}`);
-    }),
+  const sortChoice = SEARCH_SORT_CHOICES.find((c) => c.name === sortName) ?? SEARCH_SORT_CHOICES[0];
+
+  // Ask for counts on every facet field and apply the visitor's selections as `eq` filters.
+  const facetFields = useMemo<FacetField[]>(
+    () =>
+      SEARCH_FACET_FIELDS.map((name) => {
+        const values = selected[name];
+        return values?.length ? { name, filters: [{ operator: 'eq', value: values }] } : { name };
+      }),
+    [selected]
   );
-  const hasSelectedFacets = selectedSet.size > 0;
 
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const loading = isLoading || isFetching;
+  const { results, total, totalPages, facets = [], isLoading, isError, isPreviousData } =
+    useSearch<SearchDocument>({
+      searchIndexId,
+      query: keyphrase,
+      page: pageNumber,
+      pageSize,
+      sort: sortChoice.fields.length ? sortChoice.fields : undefined,
+      facet: { fields: facetFields },
+      locale: toSearchLocale(sitecorePage.locale),
+      enabled,
+      keepPreviousData: true,
+    });
+
+  const hasSelectedFacets = Object.values(selected).some((v) => v.length > 0);
+  const loading = isLoading || isPreviousData;
+
+  const toggleFacet = (field: string, value: string, checked: boolean) => {
+    setPageNumber(1);
+    setSelected((prev) => {
+      const current = new Set(prev[field] ?? []);
+      if (checked) current.add(value);
+      else current.delete(value);
+      return { ...prev, [field]: Array.from(current) };
+    });
+  };
 
   return (
-    <div ref={widgetRef}>
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-[260px_1fr]">
-        {/* ----------------------------- Facets ----------------------------- */}
-        <aside className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-zinc-900">{t(dictionaryKeys.SEARCH_FILTERS_LABEL)}</h2>
-            {hasSelectedFacets && (
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                className="h-auto p-0 text-xs font-medium text-zinc-500 hover:text-accent"
-                onClick={() => onClearFilters()}
-              >
-                {t(dictionaryKeys.SEARCH_FILTERS_CLEAR)}
-              </Button>
-            )}
-          </div>
-
-          {facets.length === 0 ? (
-            <p className="text-sm text-zinc-500">{t(dictionaryKeys.SEARCH_FILTERS_NONE)}</p>
-          ) : (
-            facets.map((facet, facetIndex) => (
-              <div key={facet.name} className="space-y-3 border-b border-zinc-200 pb-5">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  {facetLabelOf(facet, t)}
-                </h3>
-                <ul className="space-y-2.5">
-                  {facet.value.map((value, facetValueIndex) => {
-                    const checked = selectedSet.has(`${facet.name}:${value.id}`);
-                    const inputId = `facet-${facet.name}-${value.id}`;
-                    return (
-                      <li key={value.id} className="flex items-center gap-2.5">
-                        <Checkbox
-                          id={inputId}
-                          checked={checked}
-                          onCheckedChange={(next) =>
-                            onFacetClick({
-                              facetId: facet.name,
-                              facetIndex,
-                              facetValueId: value.id,
-                              facetValueIndex,
-                              checked: next === true,
-                              type: 'valueId',
-                            })
-                          }
-                        />
-                        <label
-                          htmlFor={inputId}
-                          className="flex flex-1 cursor-pointer items-center justify-between gap-2 text-sm text-zinc-700"
-                        >
-                          <span className="truncate">{value.text}</span>
-                          <span className="text-xs text-zinc-400">{value.count}</span>
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-[260px_1fr]">
+      {/* ----------------------------- Facets ----------------------------- */}
+      <aside className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-zinc-900">{t(dictionaryKeys.SEARCH_FILTERS_LABEL)}</h2>
+          {hasSelectedFacets && (
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-xs font-medium text-zinc-500 hover:text-accent"
+              onClick={() => {
+                setSelected({});
+                setPageNumber(1);
+              }}
+            >
+              {t(dictionaryKeys.SEARCH_FILTERS_CLEAR)}
+            </Button>
           )}
-        </aside>
+        </div>
 
-        {/* ----------------------------- Results ---------------------------- */}
-        <section>
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-4">
-            <p className="text-sm text-zinc-600" aria-live="polite">
-              {loading ? (
-                t(dictionaryKeys.SEARCH_LOADING)
-              ) : (
-                <>
-                  <span className="font-semibold text-zinc-900">{totalItems}</span>{' '}
-                  {totalItems === 1 ? t(dictionaryKeys.SEARCH_RESULT) : t(dictionaryKeys.SEARCH_RESULTS)}
-                  {keyphrase ? (
-                    <>
-                      {' '}
-                      {t(dictionaryKeys.SEARCH_RESULTS_FOR)}{' '}
-                      <span className="font-medium text-zinc-900">&quot;{keyphrase}&quot;</span>
-                    </>
-                  ) : null}
-                </>
-              )}
-            </p>
-
-            {sortChoices.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-zinc-500">{t(dictionaryKeys.SEARCH_SORT_LABEL)}</span>
-                <Select
-                  value={sortType || sortChoices[0]?.name}
-                  onValueChange={(name) => onSortChange({ name })}
-                >
-                  <SelectTrigger className="h-9 w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortChoices.map((choice) => (
-                      <SelectItem key={choice.name} value={choice.name}>
-                        {sortLabelOf(choice, t)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-
-          {loading ? (
-            <ResultsSkeleton />
-          ) : articles.length === 0 ? (
-            <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center">
-              <p className="font-semibold text-zinc-900">{t(dictionaryKeys.SEARCH_EMPTY_TITLE)}</p>
-              <p className="mt-1 text-sm text-zinc-500">
-                {hasSelectedFacets
-                  ? t(dictionaryKeys.SEARCH_EMPTY_BODY_WITH_FILTERS)
-                  : t(dictionaryKeys.SEARCH_EMPTY_BODY)}
-              </p>
+        {facets.length === 0 ? (
+          <p className="text-sm text-zinc-500">{t(dictionaryKeys.SEARCH_FILTERS_NONE)}</p>
+        ) : (
+          facets.map((facet) => (
+            <div key={facet.name} className="space-y-3 border-b border-zinc-200 pb-5">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {facetLabelOf(facet.name, t)}
+              </h3>
+              <ul className="space-y-2.5">
+                {facet.value.map((value) => {
+                  const valueText = String(value.text);
+                  const checked = (selected[facet.name] ?? []).includes(valueText);
+                  const inputId = `facet-${facet.name}-${valueText}`;
+                  return (
+                    <li key={valueText} className="flex items-center gap-2.5">
+                      <Checkbox
+                        id={inputId}
+                        checked={checked}
+                        onCheckedChange={(next) => toggleFacet(facet.name, valueText, next === true)}
+                      />
+                      <label
+                        htmlFor={inputId}
+                        className="flex flex-1 cursor-pointer items-center justify-between gap-2 text-sm text-zinc-700"
+                      >
+                        <span className="truncate">{valueText}</span>
+                        <span className="text-xs text-zinc-400">{value.count}</span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-          ) : (
-            <ul className="grid gap-4">
-              {articles.map((article, index) => (
-                <li key={article.id}>
+          ))
+        )}
+      </aside>
+
+      {/* ----------------------------- Results ---------------------------- */}
+      <section>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-4">
+          <p className="text-sm text-zinc-600" aria-live="polite">
+            {loading && results.length === 0 ? (
+              t(dictionaryKeys.SEARCH_LOADING)
+            ) : (
+              <>
+                <span className="font-semibold text-zinc-900">{total}</span>{' '}
+                {total === 1 ? t(dictionaryKeys.SEARCH_RESULT) : t(dictionaryKeys.SEARCH_RESULTS)}
+                {keyphrase ? (
+                  <>
+                    {' '}
+                    {t(dictionaryKeys.SEARCH_RESULTS_FOR)}{' '}
+                    <span className="font-medium text-zinc-900">&quot;{keyphrase}&quot;</span>
+                  </>
+                ) : null}
+              </>
+            )}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-zinc-500">{t(dictionaryKeys.SEARCH_SORT_LABEL)}</span>
+            <Select
+              value={sortName}
+              onValueChange={(name) => {
+                setSortName(name as SearchSortChoice['name']);
+                setPageNumber(1);
+              }}
+            >
+              <SelectTrigger className="h-9 w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SEARCH_SORT_CHOICES.map((choice) => (
+                  <SelectItem key={choice.name} value={choice.name}>
+                    {t(SORT_KEYS[choice.name])}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {isError ? (
+          <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center">
+            <p className="font-semibold text-zinc-900">Search is unavailable right now.</p>
+            <p className="mt-1 text-sm text-zinc-500">Please try again in a moment.</p>
+          </div>
+        ) : loading && results.length === 0 ? (
+          <ResultsSkeleton />
+        ) : results.length === 0 ? (
+          <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center">
+            <p className="font-semibold text-zinc-900">{t(dictionaryKeys.SEARCH_EMPTY_TITLE)}</p>
+            <p className="mt-1 text-sm text-zinc-500">
+              {hasSelectedFacets
+                ? t(dictionaryKeys.SEARCH_EMPTY_BODY_WITH_FILTERS)
+                : t(dictionaryKeys.SEARCH_EMPTY_BODY)}
+            </p>
+          </div>
+        ) : (
+          <ul className={cn('grid gap-4', isPreviousData && 'opacity-60 transition-opacity')}>
+            {results.map((doc, index) => {
+              const url = text(doc, SEARCH_FIELDS.url);
+              const title = text(doc, SEARCH_FIELDS.title) || 'Untitled';
+              const description = text(doc, SEARCH_FIELDS.description);
+              const type = text(doc, SEARCH_FIELDS.type);
+              const author = text(doc, SEARCH_FIELDS.author);
+              return (
+                <li key={text(doc, SEARCH_FIELDS.id) || url || index}>
                   <a
-                    href={article.url}
+                    href={url}
                     className="group block rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                    onClick={() =>
-                      // Tracks a result-click event for Search analytics/personalization.
-                      onItemClick({ id: article.id, index, sourceId: article.source_id })
-                    }
                   >
                     <div className="flex items-start justify-between gap-4">
                       <h3 className="text-lg font-semibold leading-snug text-zinc-900 transition-colors group-hover:text-accent">
-                        {titleOf(article)}
+                        {title}
                       </h3>
-                      {article.type && (
+                      {type && (
                         <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
-                          {article.type}
+                          {type}
                         </span>
                       )}
                     </div>
-                    {article.description && (
-                      <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-600">
-                        {article.description}
-                      </p>
+                    {description && (
+                      <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-600">{description}</p>
                     )}
-                    {article.author && (
-                      <p className="mt-3 text-xs font-medium text-zinc-400">By {article.author}</p>
-                    )}
+                    {author && <p className="mt-3 text-xs font-medium text-zinc-400">By {author}</p>}
                   </a>
                 </li>
-              ))}
-            </ul>
-          )}
+              );
+            })}
+          </ul>
+        )}
 
-          {/* --------------------------- Pagination -------------------------- */}
-          {!loading && totalPages > 1 && (
-            <nav
-              className="mt-8 flex items-center justify-center gap-2"
-              aria-label="Search results pages"
+        {/* --------------------------- Pagination -------------------------- */}
+        {!isError && totalPages > 1 && (
+          <nav className="mt-8 flex items-center justify-center gap-2" aria-label="Search results pages">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pageNumber <= 1}
+              onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
             >
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => onPageNumberChange({ page: page - 1 })}
-              >
-                Previous
-              </Button>
-              <span className="px-2 text-sm text-zinc-500">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => onPageNumberChange({ page: page + 1 })}
-              >
-                Next
-              </Button>
-            </nav>
-          )}
-        </section>
-      </div>
+              Previous
+            </Button>
+            <span className="px-2 text-sm text-zinc-500">
+              Page {pageNumber} of {totalPages}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pageNumber >= totalPages}
+              onClick={() => setPageNumber((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </Button>
+          </nav>
+        )}
+      </section>
     </div>
   );
 };
-
-/**
- * Register the UI component as a Search Results widget. The `rfkId` must match a
- * Search Results widget configured in the Sitecore Search console. This is the
- * internal SDK widget; the Sitecore rendering entry is the `Default` export below.
- *
- * NOTE: intentionally NOT a default export — the Sitecore Content SDK resolves the
- * named `Default` export as the rendering. A competing `default` export would be
- * picked up instead and rendered without its required props.
- */
-const SearchResultsWidget = widget(SearchResultsComponent, WidgetDataType.SEARCH_RESULTS, 'content');
 
 /** Section wrapper styling — mirrors the Hero `colorScheme` rendering parameter. */
 export const searchResultsVariants = cva('search-results @container w-full py-12', {
@@ -399,40 +366,43 @@ type ColorScheme = 'primary' | 'secondary' | 'tertiary' | 'dark' | 'light';
 
 /**
  * Sitecore rendering entry. Placed on a Sitecore page (the `/search` page); reads
- * the `colorScheme` rendering parameter and the `?q=` query string, then renders
- * the Search SDK widget inside a brand-styled section. `rfkId` and credentials
- * come from public env vars; if unset, a styled "not configured" notice renders so
- * the page still builds.
+ * the `colorScheme` rendering parameter, the datasource's search JSON and the
+ * `?q=` query string, then renders the results inside a brand-styled section.
+ * If no source is configured a styled notice renders so the page still builds.
  */
-const SearchResultsContent = ({ params }: ComponentProps) => {
+const SearchResultsContent = ({ params, fields }: SearchResultsProps) => {
   const colorScheme = ((params?.colorScheme as ColorScheme) || 'light') as ColorScheme;
   const q = useSearchParams()?.get('q') ?? '';
   const localizeHref = useLocalizeHref();
+  const { page } = useSitecore();
+  const { isEditing, isPreview } = page.mode;
 
-  const rfkId = process.env.NEXT_PUBLIC_SEARCH_RESULTS_RFKID;
-  const configured =
-    !!process.env.NEXT_PUBLIC_SEARCH_ENV &&
-    !!process.env.NEXT_PUBLIC_SEARCH_CUSTOMER_KEY &&
-    !!process.env.NEXT_PUBLIC_SEARCH_API_KEY;
+  const { searchIndex } = useSearchField(fields?.search?.value);
+  const searchIndexId = searchIndex || SEARCH_INDEX_ID;
+  const configured = isSearchConfigured(searchIndexId);
 
   return (
     <section className={cn(searchResultsVariants({ colorScheme }), params?.styles)}>
       <div className="mx-auto w-full max-w-screen-xl px-4 xl:px-8">
-        {/* Sitecore Search answers questions and returns documents through two
-            separate widgets — nothing in the platform routes a question-shaped
-            query to Q&A on its own. Render the Q&A panel above the list so an
-            answer leads, with the matching articles underneath. */}
+        {/* A written answer leads when the query reads as a question; the matching
+            articles follow underneath. */}
         <SearchQuestionsPanel keyphrase={q} />
 
-        {configured && rfkId ? (
-          <SearchResultsWidget key={q || '__all__'} rfkId={rfkId} defaultKeyphrase={q} />
+        {configured ? (
+          <SearchResultsList
+            key={`${searchIndexId}:${q}`}
+            searchIndexId={searchIndexId}
+            keyphrase={q}
+            // Live search is switched off inside Page builder and Preview; the
+            // component is configured there, not exercised.
+            enabled={!isEditing && !isPreview}
+          />
         ) : (
           <div className="rounded-xl border border-zinc-200 bg-white p-8">
             <p className="font-semibold text-zinc-900">Search is not configured yet.</p>
             <p className="mt-1 text-sm text-zinc-500">
-              Set <code>NEXT_PUBLIC_SEARCH_ENV</code>, <code>NEXT_PUBLIC_SEARCH_CUSTOMER_KEY</code>,{' '}
-              <code>NEXT_PUBLIC_SEARCH_API_KEY</code>, and{' '}
-              <code>NEXT_PUBLIC_SEARCH_RESULTS_RFKID</code> in your environment, then redeploy.
+              Pick a search source for this component in Page builder (Search Configuration Manager
+              tab), or set <code>NEXT_PUBLIC_SEARCH_INDEX_ID</code> to a source GUID and redeploy.
             </p>
           </div>
         )}
@@ -443,38 +413,29 @@ const SearchResultsContent = ({ params }: ComponentProps) => {
           <h2 className="mb-2 font-semibold text-zinc-900">How this demo works</h2>
           <ul className="list-disc space-y-1 pl-5">
             <li>
-              This page queries <strong>two separate Sitecore Search widgets</strong>: a{' '}
-              <code>content_grid</code> for the result list, and a <code>questions_answers</code>{' '}
-              widget for the answer above it. Nothing in the platform routes a question-shaped
-              query to Q&amp;A on its own — the page asks both and composes the results.
+              Results come from an <strong>embedded SitecoreAI search source</strong>: a crawler that
+              indexes this site from its sitemap. The page queries it with the Content SDK&apos;s{' '}
+              <code>useSearch</code> hook, authenticated by the site&apos;s Edge context id; there is
+              no separate search API key.
             </li>
             <li>
               The answer panel only appears when you <strong>ask a question</strong>. A keyword
               browse such as &quot;solar&quot; just returns the list, which is most searches.
             </li>
             <li>
-              Answers say where they came from, in small type beside &quot;Answer&quot;.{' '}
-              <strong>FAQ Generated</strong> is a curated Q&amp;A pair maintained by the site team
-              in Sitecore Search — editors can correct or hide any answer, and the change shows up
-              here and in the chat demos. <strong>AI Generated</strong> is written on the spot when
-              the Q&amp;A knowledge base has nothing for that question.
-            </li>
-            <li>
-              An AI-generated answer is <strong>grounded in the article index</strong>: the model
-              gets a search tool and no site knowledge of its own, weak matches are filtered out
-              before it sees them, and if the articles do not actually answer the question it
-              returns nothing and this panel stays hidden rather than guessing.
+              An answer is <strong>AI generated and grounded in the article index</strong>: the
+              model only sees the articles retrieved for your question, weak matches are filtered
+              out first, and if the articles do not actually answer it the panel stays hidden
+              rather than guessing.
             </li>
             <li>
               <strong>Continue this conversation</strong> carries the question over to Agent Chat,
-              which re-answers it with its own tools — the same curated answer plus related
-              articles — so a short answer can become a longer, cited one without retyping.
+              which re-answers it with its own tools against the same source.
             </li>
             <li>
-              Facets (content type, author, topics) are requested{' '}
-              <strong>explicitly in code</strong> rather than relying on the widget&apos;s default
-              set, and results are scoped to this site&apos;s crawler source, since one Search
-              domain holds a single index shared by every site that feeds it.
+              Facets (content type, author, topics) are the fields the source marks{' '}
+              <strong>Filterable</strong>; counts update with every query and selections are sent
+              back as filters.
             </li>
             <li>
               Compare with the{' '}
@@ -491,8 +452,7 @@ const SearchResultsContent = ({ params }: ComponentProps) => {
               >
                 RAG Chat
               </Link>{' '}
-              pages, which reach the same index and the same Q&amp;A pairs through a conversation
-              instead of a result list.
+              pages, which reach the same source through a conversation instead of a result list.
             </li>
           </ul>
         </div>
@@ -501,7 +461,7 @@ const SearchResultsContent = ({ params }: ComponentProps) => {
   );
 };
 
-export const Default = (props: ComponentProps) => (
+export const Default = (props: SearchResultsProps) => (
   <Suspense fallback={null}>
     <SearchResultsContent {...props} />
   </Suspense>

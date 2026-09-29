@@ -22,10 +22,29 @@ import * as Image from 'src/components/sxa/Image';
 import * as SubscriptionBanner from 'src/components/subscription-banner/SubscriptionBanner';
 import * as SearchResults from 'src/components/sitecore-search/SearchResults';
 import * as SearchQuestions from 'src/components/sitecore-search/SearchQuestions';
-import * as SearchProvider from 'src/components/sitecore-search/SearchProvider';
-import * as SearchLocale from 'src/components/sitecore-search/SearchLocale';
 import * as PreviewSearchBox from 'src/components/sitecore-search/PreviewSearchBox';
 import * as SecondaryNavigation from 'src/components/secondary-navigation/SecondaryNavigation';
+import * as SearchExperienceLoadMore from 'src/components/search-experience/SearchExperience.LoadMore';
+import * as SearchExperience from 'src/components/search-experience/SearchExperience';
+import * as UseSearchField from 'src/components/search-experience/search-components/useSearchField';
+import * as UseRouter from 'src/components/search-experience/search-components/useRouter';
+import * as UseParams from 'src/components/search-experience/search-components/useParams';
+import * as UseEvent from 'src/components/search-experience/search-components/useEvent';
+import * as UseDebounce from 'src/components/search-experience/search-components/useDebounce';
+import * as SearchSkeletonItem from 'src/components/search-experience/search-components/SearchSkeletonItem';
+import * as SearchPagination from 'src/components/search-experience/search-components/SearchPagination';
+import * as SearchItemCommon from 'src/components/search-experience/search-components/SearchItemCommon';
+import * as SearchInput from 'src/components/search-experience/search-components/SearchInput';
+import * as SearchError from 'src/components/search-experience/search-components/SearchError';
+import * as SearchEmptyResults from 'src/components/search-experience/search-components/SearchEmptyResults';
+import * as SearchItemTitle from 'src/components/search-experience/search-components/SearchItem/SearchItemTitle';
+import * as SearchItemTags from 'src/components/search-experience/search-components/SearchItem/SearchItemTags';
+import * as SearchItemSummary from 'src/components/search-experience/search-components/SearchItem/SearchItemSummary';
+import * as SearchItemSubTitle from 'src/components/search-experience/search-components/SearchItem/SearchItemSubTitle';
+import * as SearchItemLink from 'src/components/search-experience/search-components/SearchItem/SearchItemLink';
+import * as SearchItemImage from 'src/components/search-experience/search-components/SearchItem/SearchItemImage';
+import * as SearchItemCategory from 'src/components/search-experience/search-components/SearchItem/SearchItemCategory';
+import * as Index from 'src/components/search-experience/search-components/SearchItem/index';
 import * as RagChat from 'src/components/rag-chat/RagChat';
 import * as PromoAnimatedImageRightdev from 'src/components/promo-animated/PromoAnimatedImageRight.dev';
 import * as PromoAnimatedDefaultdev from 'src/components/promo-animated/PromoAnimatedDefault.dev';
@@ -75,10 +94,28 @@ export const componentMap = new Map<string, NextjsContentSdkComponent>([
   ['SubscriptionBanner', { ...SubscriptionBanner }],
   ['SearchResults', { ...SearchResults }],
   ['SearchQuestions', { ...SearchQuestions }],
-  ['SearchProvider', { ...SearchProvider }],
-  ['SearchLocale', { ...SearchLocale }],
   ['PreviewSearchBox', { ...PreviewSearchBox }],
   ['SecondaryNavigation', { ...SecondaryNavigation }],
+  ['SearchExperience', { ...SearchExperienceLoadMore, ...SearchExperience }],
+  ['useSearchField', { ...UseSearchField }],
+  ['useRouter', { ...UseRouter }],
+  ['useParams', { ...UseParams }],
+  ['useEvent', { ...UseEvent }],
+  ['useDebounce', { ...UseDebounce }],
+  ['SearchSkeletonItem', { ...SearchSkeletonItem }],
+  ['SearchPagination', { ...SearchPagination }],
+  ['SearchItemCommon', { ...SearchItemCommon }],
+  ['SearchInput', { ...SearchInput }],
+  ['SearchError', { ...SearchError }],
+  ['SearchEmptyResults', { ...SearchEmptyResults }],
+  ['SearchItemTitle', { ...SearchItemTitle }],
+  ['SearchItemTags', { ...SearchItemTags }],
+  ['SearchItemSummary', { ...SearchItemSummary }],
+  ['SearchItemSubTitle', { ...SearchItemSubTitle }],
+  ['SearchItemLink', { ...SearchItemLink }],
+  ['SearchItemImage', { ...SearchItemImage }],
+  ['SearchItemCategory', { ...SearchItemCategory }],
+  ['index', { ...Index }],
   ['RagChat', { ...RagChat }],
   ['PromoAnimatedImageRight', { ...PromoAnimatedImageRightdev }],
   ['PromoAnimatedDefault', { ...PromoAnimatedDefaultdev }],

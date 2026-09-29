@@ -1,5 +1,12 @@
 # Search & Chat Agent Guide (Article Starter)
 
+> **Update (2026-09-29):** retrieval now runs on embedded SitecoreAI Search (Content > Search
+> Sources) through the Content SDK: `useSearch`/`useSuggest` in the browser and `SearchService` in
+> `src/lib/sitecore-search-query.ts`. Where this guide says "Sitecore Search", "Discover REST API",
+> `rfkid` or `questions_answers`, read the current setup in `SITECORE_SEARCH_SETUP.md`. Curated Q&A
+> groups have no embedded equivalent yet, so `querySitecoreQuestions()` returns nothing and every
+> answer is generated from retrieved articles.
+
 > **This is `kit-nextjs-article-starter`-only.** Sitecore Search, Azure OpenAI,
 > and everything else in this doc live entirely in this starter — no other
 > starter in this repo depends on `@sitecore-search/*` or `AZURE_OPENAI_*`.

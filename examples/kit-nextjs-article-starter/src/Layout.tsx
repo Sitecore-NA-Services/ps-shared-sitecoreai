@@ -19,7 +19,6 @@ import Providers from './Providers';
 import { resolvePageMetadata, type RouteFields } from '@/lib/page-metadata';
 import type { PrefixMap } from '@/lib/localize-href';
 import HtmlLang from '@/components/util/HtmlLang';
-import SearchLocale from '@/components/sitecore-search/SearchLocale';
 
 const heading = Figtree({
   weight: ['400', '500'],
@@ -49,7 +48,6 @@ const Layout = ({ page, localizedPaths = {} }: LayoutProps): JSX.Element => {
   return (
     <>
       <HtmlLang lang={layout.sitecore.context?.language} />
-      <SearchLocale locale={layout.sitecore.context?.language} />
       <Scripts />
       <SitecoreStyles layoutData={layout} />
       <Head>

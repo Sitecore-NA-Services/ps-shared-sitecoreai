@@ -46,8 +46,6 @@ import * as SubscriptionBannerprops from 'src/components/subscription-banner/sub
 import * as SubscriptionBannerdictionary from 'src/components/subscription-banner/subscription-banner.dictionary';
 import * as SearchResults from 'src/components/sitecore-search/SearchResults';
 import * as SearchQuestions from 'src/components/sitecore-search/SearchQuestions';
-import * as SearchProvider from 'src/components/sitecore-search/SearchProvider';
-import * as SearchLocale from 'src/components/sitecore-search/SearchLocale';
 import * as SearchResultsdictionary from 'src/components/sitecore-search/search-results.dictionary';
 import * as SearchQuestionsdictionary from 'src/components/sitecore-search/search-questions.dictionary';
 import * as SearchConfig from 'src/components/sitecore-search/search-config';
@@ -57,6 +55,29 @@ import * as SiteMetadata from 'src/components/site-metadata/SiteMetadata';
 import * as SiteMetadataprops from 'src/components/site-metadata/site-metadata.props';
 import * as SecondaryNavigation from 'src/components/secondary-navigation/SecondaryNavigation';
 import * as SecondaryNavigationprops from 'src/components/secondary-navigation/secondary-navigation.props';
+import * as SearchExperienceLoadMore from 'src/components/search-experience/SearchExperience.LoadMore';
+import * as SearchExperience from 'src/components/search-experience/SearchExperience';
+import * as UseSearchField from 'src/components/search-experience/search-components/useSearchField';
+import * as UseRouter from 'src/components/search-experience/search-components/useRouter';
+import * as UseParams from 'src/components/search-experience/search-components/useParams';
+import * as UseEvent from 'src/components/search-experience/search-components/useEvent';
+import * as UseDebounce from 'src/components/search-experience/search-components/useDebounce';
+import * as SearchSkeletonItem from 'src/components/search-experience/search-components/SearchSkeletonItem';
+import * as SearchPagination from 'src/components/search-experience/search-components/SearchPagination';
+import * as SearchItemCommon from 'src/components/search-experience/search-components/SearchItemCommon';
+import * as SearchInput from 'src/components/search-experience/search-components/SearchInput';
+import * as SearchError from 'src/components/search-experience/search-components/SearchError';
+import * as SearchEmptyResults from 'src/components/search-experience/search-components/SearchEmptyResults';
+import * as Models from 'src/components/search-experience/search-components/models';
+import * as Constants from 'src/components/search-experience/search-components/constants';
+import * as SearchItemTitle from 'src/components/search-experience/search-components/SearchItem/SearchItemTitle';
+import * as SearchItemTags from 'src/components/search-experience/search-components/SearchItem/SearchItemTags';
+import * as SearchItemSummary from 'src/components/search-experience/search-components/SearchItem/SearchItemSummary';
+import * as SearchItemSubTitle from 'src/components/search-experience/search-components/SearchItem/SearchItemSubTitle';
+import * as SearchItemLink from 'src/components/search-experience/search-components/SearchItem/SearchItemLink';
+import * as SearchItemImage from 'src/components/search-experience/search-components/SearchItem/SearchItemImage';
+import * as SearchItemCategory from 'src/components/search-experience/search-components/SearchItem/SearchItemCategory';
+import * as Index from 'src/components/search-experience/search-components/SearchItem/index';
 import * as RichTextBlock from 'src/components/rich-text-block/RichTextBlock';
 import * as RichTextBlockprops from 'src/components/rich-text-block/rich-text-block.props';
 import * as RagChat from 'src/components/rag-chat/RagChat';
@@ -191,8 +212,6 @@ export const componentMap = new Map<string, NextjsContentSdkComponent>([
   ['subscription-banner', { ...SubscriptionBannerprops, ...SubscriptionBannerdictionary }],
   ['SearchResults', { ...SearchResults, componentType: 'client' }],
   ['SearchQuestions', { ...SearchQuestions, componentType: 'client' }],
-  ['SearchProvider', { ...SearchProvider, componentType: 'client' }],
-  ['SearchLocale', { ...SearchLocale, componentType: 'client' }],
   ['search-results', { ...SearchResultsdictionary }],
   ['search-questions', { ...SearchQuestionsdictionary }],
   ['search-config', { ...SearchConfig }],
@@ -202,6 +221,28 @@ export const componentMap = new Map<string, NextjsContentSdkComponent>([
   ['site-metadata', { ...SiteMetadataprops }],
   ['SecondaryNavigation', { ...SecondaryNavigation, componentType: 'client' }],
   ['secondary-navigation', { ...SecondaryNavigationprops }],
+  ['SearchExperience', { ...SearchExperienceLoadMore, ...SearchExperience, componentType: 'client' }],
+  ['useSearchField', { ...UseSearchField, componentType: 'client' }],
+  ['useRouter', { ...UseRouter, componentType: 'client' }],
+  ['useParams', { ...UseParams, componentType: 'client' }],
+  ['useEvent', { ...UseEvent, componentType: 'client' }],
+  ['useDebounce', { ...UseDebounce, componentType: 'client' }],
+  ['SearchSkeletonItem', { ...SearchSkeletonItem, componentType: 'client' }],
+  ['SearchPagination', { ...SearchPagination, componentType: 'client' }],
+  ['SearchItemCommon', { ...SearchItemCommon, componentType: 'client' }],
+  ['SearchInput', { ...SearchInput, componentType: 'client' }],
+  ['SearchError', { ...SearchError, componentType: 'client' }],
+  ['SearchEmptyResults', { ...SearchEmptyResults, componentType: 'client' }],
+  ['models', { ...Models }],
+  ['constants', { ...Constants }],
+  ['SearchItemTitle', { ...SearchItemTitle, componentType: 'client' }],
+  ['SearchItemTags', { ...SearchItemTags, componentType: 'client' }],
+  ['SearchItemSummary', { ...SearchItemSummary, componentType: 'client' }],
+  ['SearchItemSubTitle', { ...SearchItemSubTitle, componentType: 'client' }],
+  ['SearchItemLink', { ...SearchItemLink, componentType: 'client' }],
+  ['SearchItemImage', { ...SearchItemImage, componentType: 'client' }],
+  ['SearchItemCategory', { ...SearchItemCategory, componentType: 'client' }],
+  ['index', { ...Index, componentType: 'client' }],
   ['RichTextBlock', { ...RichTextBlock }],
   ['rich-text-block', { ...RichTextBlockprops }],
   ['RagChat', { ...RagChat, componentType: 'client' }],
