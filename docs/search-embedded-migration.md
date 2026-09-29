@@ -78,8 +78,24 @@ stay.
 - Incident: a non-interactive `vercel link` silently kept the demo link, so one production deploy and
   env writes hit `article-starter`. Rolled back to the previous deployment and env values restored the
   same hour. The demo is verified working.
-- Next: first deploy of the branch, create the site source against the new URL, set
-  `NEXT_PUBLIC_SEARCH_INDEX_ID`, install the Search Configuration Manager app for authors.
+- Branch deployed to https://article-starter-sai.vercel.app (Framework preset had to be set to Next.js on
+  the project first). Sitemap serves 174 URLs, 73 of them articles.
+- Site source **solterra-articles** created on ps-shared-dev, GUID `ea66061d-df98-4f10-9fe0-032e76e6713a`.
+  Daily re-index 09:00 America/New_York; sitemap discovery found `/sitemap.xml`; language detection found
+  none, so it indexes as a single language (no `locale` is sent); crawl rules disallow paths containing
+  `/search`, `/Agent-Chat`, `/RAG-Chat`; fields: `title` (head title, searchable, sortable),
+  `description` (CSS `main`, the whole article text, searchable), `author` (og `article:author`,
+  filterable), `type` (og `article:section`, filterable), `tags` (og `article:tag`, Tags type,
+  searchable, filterable). Semantic reranking, fuzzy search, autocomplete (limit 5) and result preview
+  (limit 6) are on; autocomplete fields still need to be chosen in the source settings.
+- `NEXT_PUBLIC_SEARCH_INDEX_ID`, `SITECORE_SEARCH_INDEX_ID` and `NEXT_PUBLIC_SEARCH_FIELD_MAP`
+  (`{"image":"","date":""}`) set on the Vercel project.
+- Wizard notes: the URL-filter preview lags one change behind; pressing Enter in the Settings step
+  submits the whole source; the search endpoint answers 404 "no search index found" until the first crawl
+  finishes.
+- Search Configuration Manager is installed at the org level (Marketplace) but the environment's Apps
+  panel showed none yet; authors need it before they can map fields in Page builder.
+- Next: verify /search, typeahead and the chat routes on the new URL once the crawl finishes.
 
 ## Order of work
 

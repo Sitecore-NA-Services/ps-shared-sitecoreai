@@ -47,7 +47,12 @@ This starter includes:
    (see step 3).
 7. Advanced settings: turn on semantic reranking and fuzzy search, then **Save**. Wait for the
    first crawl to finish (the source shows *Succeeded* under Last Index).
-8. Copy the source GUID from the source's details page.
+8. Copy the source GUID from the source's details page (it is the GUID in the page URL).
+
+The source created for the new-org build on 2026-09-29 is **solterra-articles**,
+`ea66061d-df98-4f10-9fe0-032e76e6713a`, with fields `title`, `description` (the whole `main` text),
+`author`, `type` and `tags`, single language, no `image` or `date`. Its Vercel project therefore
+sets `NEXT_PUBLIC_SEARCH_FIELD_MAP={"image":"","date":""}` so no date sort is offered.
 
 Alternatives: a **Content Source** on the Article template indexes published items with their
 real fields and needs no crawl; a **Push Source** takes documents from the Ingestion Service API.

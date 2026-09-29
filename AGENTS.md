@@ -365,7 +365,10 @@ dotnet sitecore ser validate
 - CLI: `dotnet sitecore cloud login` is now against the new org and the `ps-shared-dev` endpoint in
   `authoring/.sitecore/user.json` points at the NEW CM. Re-run `cloud login` and `cloud environment connect`
   with the old IDs above if you need the old CM through the CLI again.
-- Search still targets the old Sitecore Search domain on purpose; it is reworked separately.
+- Search rework lives on branch `sitecoreai-embedded` (tag `old-org-cec-search` marks the CEC state). Vercel:
+  `article-starter` (demo, old org, never redeploy from the branch) and `article-starter-sai`
+  (`prj_3eWSyjHllOqjReigIO0RwilqBX3q`, new org, embedded Search source `ea66061d-df98-4f10-9fe0-032e76e6713a`).
+  Target Vercel projects by `VERCEL_PROJECT_ID`, never by relinking the starter dir.
 
 ## Additional Context
 
