@@ -9,6 +9,18 @@ for solterra, lighthouse-lifestyle, round-rock-sasquatch and angular-skate-park,
 through its new editing host. Still to do: repoint local `.env.local` files when you want to develop
 against the new org, Vercel cutover later, Search rework.
 
+**Addendum (2026-09-29, evening): the first publish was incomplete.** The Solterra header on the new
+org lacked its About Us and Articles links: those datasource items, and 331 other item versions across
+19 sites (245 of them Solterra), had their latest master version in a Draft workflow state. The transfer
+moves master only; in the old org an earlier *published* version of each was live in the web database,
+which never came across, and publishing skips non-final versions, so a republish changes nothing. Fix:
+`tools/content-transfer/workflow-approve.mjs` moved all 333 to Approved through the authoring API (275
+via the workflow command, 58 forced by writing `__Workflow state` because the command refused
+datasources with validation errors), followed by a smart publish. Consequence to know: where the Draft
+was newer than the old published version, the new org now shows the Draft content. Do not read Edge's
+`routes.total` as a page count: it counts published versions (Solterra reports 161 for 87 pages on both
+orgs); compare the de-duplicated `routePath` lists instead, which match on every site.
+
 The new SitecoreAI release ships Personalization and Search embedded in the platform. We are
 moving every site from the old org to a new org/instance, keeping the old one running for now.
 Search will be reworked later against the embedded Search, so the article starter keeps pointing
@@ -127,10 +139,15 @@ so every template and rendering it references already exists.
 1. In the new CM, open Content Editor and confirm each collection is under `/sitecore/content`
    and each site's `Settings/Site Grouping/<site>` still names its editing host.
 2. Sites dashboard: every site listed. If a site is missing, its site grouping item did not arrive.
-3. Publish everything, from `authoring/`: `dotnet sitecore publish -n <new-endpoint-name>` after
-   `dotnet sitecore cloud environment connect --environment-id <CM_ID> --allow-write`. Publishing
-   skips items that are not in a final workflow state, same as before.
-4. Open Pages per site and load the home page through its editing host.
+3. Approve what the transfer left in Draft: `node tools/content-transfer/workflow-approve.mjs` (dry
+   run), then `--apply`, then `--apply --force` for datasources the command rejects on validation.
+   Without this step every item whose latest master version was Draft in the old org stays off Edge,
+   because its previously published version lived only in the old web database.
+4. Publish everything, from `authoring/`: `dotnet sitecore publish -n <new-endpoint-name>` after
+   `dotnet sitecore cloud environment connect --environment-id <CM_ID> --allow-write`. Compare the
+   de-duplicated `routes.results.routePath` lists on the preview and live context IDs per site (the
+   `total` counts versions, not pages); they should match.
+5. Open Pages per site and load the home page through its editing host.
 
 ## Step 5: editing-host variables
 
@@ -183,6 +200,9 @@ Until then production traffic keeps flowing from the old org.
   `PAGES_PERSONALIZE_SCOPE` on the new CM before anyone creates rules there, not after.
 - The transfer APIs need the base image that shipped them (1.8.24 or later). Both CMs answered
   on the transfer endpoints today, so both are on a recent image.
+- Two test sites differ from the old org on live Edge and were left alone: `thai-pathway-test` has 12
+  routes live in the new org that were never live in the old one (published by the first full publish),
+  and `brk` has one landing page (`5 Simple Wellness Habits...`) that is unpublished in both.
 - Users, roles and the `powershell` service account used by the MCP server must be recreated;
   SPE remoting on the new CM needs `SITECORE_SPE_ELEVATION` and a remoting user just like the old one.
 
