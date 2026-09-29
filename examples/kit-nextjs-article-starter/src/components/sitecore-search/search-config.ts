@@ -16,10 +16,37 @@
  *
  *  2. Which fields of an indexed document mean what. Field names are decided
  *     when the source is created (a site source extracts them from the crawled
- *     HTML), so they are not hard-coded: override any of them with a JSON blob in
- *     `NEXT_PUBLIC_SEARCH_FIELD_MAP`, for example
- *     `{"title":"page_title","tags":"topics"}`.
+ *     HTML), so they are not hard-coded: override any of them in
+ *     `NEXT_PUBLIC_SEARCH_FIELD_MAP`, either as JSON
+ *     (`{"title":"page_title","tags":"topics"}`) or, because SitecoreAI Deploy
+ *     rejects variable values that contain double quotes, as comma-separated
+ *     `key=value` pairs (`title=page_title,tags=topics`). An empty value
+ *     (`date=`) disables that field.
  */
+
+/**
+ * Parses a small string-to-string map from either JSON or `key=value,key=value`.
+ * Returns undefined when the input is empty or unparseable.
+ */
+export function parseMapEnv(raw: string | undefined, name: string): Record<string, string> | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  if (value.startsWith('{')) {
+    try {
+      return JSON.parse(value) as Record<string, string>;
+    } catch {
+      console.warn(`${name} is not valid JSON; ignoring it.`);
+      return undefined;
+    }
+  }
+  const map: Record<string, string> = {};
+  for (const pair of value.split(',')) {
+    const i = pair.indexOf('=');
+    if (i <= 0) continue;
+    map[pair.slice(0, i).trim()] = pair.slice(i + 1).trim();
+  }
+  return map;
+}
 
 /** Source GUID used when a rendering has no datasource of its own. */
 export const SEARCH_INDEX_ID =
@@ -55,14 +82,8 @@ const DEFAULT_FIELDS: SearchFieldMap = {
 };
 
 function readFieldMap(): SearchFieldMap {
-  const raw = process.env.NEXT_PUBLIC_SEARCH_FIELD_MAP;
-  if (!raw) return DEFAULT_FIELDS;
-  try {
-    return { ...DEFAULT_FIELDS, ...(JSON.parse(raw) as Partial<SearchFieldMap>) };
-  } catch {
-    console.warn('NEXT_PUBLIC_SEARCH_FIELD_MAP is not valid JSON; using the default field names.');
-    return DEFAULT_FIELDS;
-  }
+  const overrides = parseMapEnv(process.env.NEXT_PUBLIC_SEARCH_FIELD_MAP, 'NEXT_PUBLIC_SEARCH_FIELD_MAP');
+  return overrides ? { ...DEFAULT_FIELDS, ...(overrides as Partial<SearchFieldMap>) } : DEFAULT_FIELDS;
 }
 
 export const SEARCH_FIELDS: SearchFieldMap = readFieldMap();
@@ -95,22 +116,17 @@ export const SEARCH_SORT_CHOICES: SearchSortChoice[] = [
  * was created with.
  *
  * A `locale` is only valid on multi-locale sources, so nothing is sent unless
- * `NEXT_PUBLIC_SEARCH_LOCALE_MAP` is set. Its JSON maps Sitecore languages to the
- * source's locale codes, e.g. `{"en":"en","es-MX":"es-MX"}`; languages missing from
- * the map fall back to the language tag itself. The solterra source created on
+ * `NEXT_PUBLIC_SEARCH_LOCALE_MAP` is set. It maps Sitecore languages to the source's
+ * locale codes as JSON (`{"en":"en","es-MX":"es-MX"}`) or `en=en,es-MX=es-MX`;
+ * languages missing from the map fall back to the language tag itself. The solterra source created on
  * 2026-09-29 detected no languages and indexes everything as one language, so the
  * variable stays unset for it.
  */
 export function toSearchLocale(language?: string | null): string | undefined {
-  const raw = process.env.NEXT_PUBLIC_SEARCH_LOCALE_MAP;
-  if (!raw || !language) return undefined;
-  try {
-    const map = JSON.parse(raw) as Record<string, string>;
-    return map[language] || language;
-  } catch {
-    console.warn('NEXT_PUBLIC_SEARCH_LOCALE_MAP is not valid JSON; locale not sent.');
-    return undefined;
-  }
+  if (!language) return undefined;
+  const map = parseMapEnv(process.env.NEXT_PUBLIC_SEARCH_LOCALE_MAP, 'NEXT_PUBLIC_SEARCH_LOCALE_MAP');
+  if (!map) return undefined;
+  return map[language] || language;
 }
 
 /** True when the app knows which source to query. */

@@ -80,8 +80,8 @@ Copy `.env.remote.example` to `.env.local` (or set them on the hosting platform)
 | --- | --- |
 | `SITECORE_EDGE_CONTEXT_ID`, `NEXT_PUBLIC_SITECORE_EDGE_CONTEXT_ID` | already required by the site; also authenticate search |
 | `NEXT_PUBLIC_SEARCH_INDEX_ID` | source GUID (see step 2) |
-| `NEXT_PUBLIC_SEARCH_FIELD_MAP` | optional JSON renaming indexed fields, e.g. `{"title":"page_title","date":""}` |
-| `NEXT_PUBLIC_SEARCH_LOCALE_MAP` | optional JSON mapping Sitecore languages to source locale codes |
+| `NEXT_PUBLIC_SEARCH_FIELD_MAP` | optional map renaming indexed fields, as JSON `{"title":"page_title","date":""}` or `title=page_title,date=` (Deploy variables cannot contain double quotes) |
+| `NEXT_PUBLIC_SEARCH_LOCALE_MAP` | optional map of Sitecore languages to source locale codes, JSON or `en=en,es-MX=es-MX` |
 | `NEXT_PUBLIC_SITEMAP_HOST` | public URL the crawler and sitemap use |
 
 Without `NEXT_PUBLIC_SEARCH_INDEX_ID` (or a datasource) the header renders a plain input that
