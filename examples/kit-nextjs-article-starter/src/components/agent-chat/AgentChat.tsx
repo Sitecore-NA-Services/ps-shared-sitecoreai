@@ -154,12 +154,11 @@ const AgentChatContent: React.FC = () => {
         <h2 className="mb-2 font-semibold text-foreground">How this demo works</h2>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            The LLM (Azure OpenAI) is given three <strong>tools</strong>:{' '}
-            <code>askKnowledgeBase</code>, which puts a question to the curated Sitecore Search
-            Q&amp;A pairs the site team maintains; <code>listArticleFacets</code>, which discovers
-            the exact content type, author, and topic values available in the index; and{' '}
-            <code>searchArticles</code>, which queries the index by keyphrase and can optionally
-            filter by any of those facets.
+            The LLM (Azure OpenAI) is given two <strong>tools</strong> over an{' '}
+            <strong>embedded SitecoreAI search source</strong> that crawls this site:{' '}
+            <code>listArticleFacets</code>, which discovers the exact content type, author, and
+            topic values available in the index; and <code>searchArticles</code>, which queries the
+            index by keyphrase and can optionally filter by any of those facets.
           </li>
           <li>
             The model decides <strong>for itself</strong>, turn by turn, whether a question needs a
@@ -175,6 +174,8 @@ const AgentChatContent: React.FC = () => {
             Each result shows a <strong>relevance score</strong> (0-100%) computed by embedding the
             query and each result, then measuring cosine similarity between them, giving the
             model (and you) a clear signal of match quality rather than trusting result order alone.
+            Answers come only from the text of results scoring about 45% or more; below that the
+            assistant says the articles do not cover the topic.
           </li>
           <li>
             This pattern (&quot;agentic search&quot;/&quot;function calling&quot;) is best when the assistant

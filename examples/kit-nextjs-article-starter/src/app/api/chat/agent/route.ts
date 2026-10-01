@@ -1,7 +1,7 @@
 import { streamText, tool, type Message } from 'ai';
 import { z } from 'zod';
 import { chatModel } from '@/lib/azure-openai';
-import { querySitecoreSearch, listSearchFacetValues, querySitecoreQuestions } from '@/lib/sitecore-search-query';
+import { querySitecoreSearch, listSearchFacetValues } from '@/lib/sitecore-search-query';
 import { rerankByRelevance } from '@/lib/rerank';
 
 export const maxDuration = 30;
@@ -12,6 +12,11 @@ export const maxDuration = 30;
  * index being retrieved automatically (compare with /api/chat/rag). It can
  * also call `listArticleFacets` to discover valid content type / author / tag
  * filter values before narrowing a search with them.
+ *
+ * There is no curated Q&A tool any more: embedded SitecoreAI Search has no Q&A
+ * groups, and a tool that always answered "no curated answer" both wasted a step
+ * and primed the model to decline (2026-10-01: "how does solterra recommend
+ * storing batteries?" was declined 4/4 with a 0.63 match on the top article).
  */
 export async function POST(req: Request) {
   const { messages, locale }: { messages: Message[]; locale?: string } = await req.json();
@@ -32,9 +37,6 @@ export async function POST(req: Request) {
     system:
       'You are a helpful assistant for the Solterra & Co. article site. ' +
       `${languageNote} ` +
-      'When the user asks a direct question, call askKnowledgeBase first — those answers are ' +
-      'editorially reviewed, so they are more trustworthy than raw article text. If it returns ' +
-      'nothing useful, fall back to searchArticles. ' +
       'Use the searchArticles tool whenever the user asks about article content, ' +
       'topics, or facts that may be covered by the site. If the user wants to narrow ' +
       'results by content type, author, or topic, call listArticleFacets first to see the ' +
@@ -42,13 +44,18 @@ export async function POST(req: Request) {
       'searchArticles. The query keyphrase is matched against article text semantically, so ' +
       'when filtering by author or content type, do NOT put the author name or content type ' +
       'in the query - use a topical keyword instead, or omit query entirely if the user just ' +
-      "wants everything by that author/type. Cite article titles and URLs in your answer. Each " +
-      'result includes a relevanceScore (0-1, cosine similarity to the query). Answer ONLY using ' +
-      'what askKnowledgeBase and searchArticles returned - never fall back on your own general ' +
-      'knowledge of the topic. If both tools return nothing, or nothing scoring at least roughly ' +
-      "0.45, tell the user Solterra's content does not cover this topic and STOP there; do not " +
-      'follow that disclosure with an answer from outside knowledge. Below that threshold, treat ' +
-      'the result as unusable context, not as a weak answer to present with caveats.',
+      "wants everything by that author/type. Cite article titles and URLs in your answer. " +
+      'Each result includes a relevanceScore (0-1, cosine similarity to the query) and the ' +
+      "article's full text in description. Ground every statement in that text - never add " +
+      'facts from your own general knowledge. ' +
+      'Results scoring at least roughly 0.45 are relevant: read their text and answer with what ' +
+      'they actually say that bears on the question, even when the articles do not use the ' +
+      "user's exact wording or do not frame it as a single recommendation - summarise the " +
+      'relevant practices, findings, or guidance they describe. Say plainly which parts of the ' +
+      'question the articles do not cover. ' +
+      'If the first search scores below that, try one rephrased search before giving up. Only ' +
+      "when no result reaches roughly 0.45 should you say Solterra's content does not cover " +
+      'the topic; in that case stop there and do not answer from outside knowledge.',
     messages,
     tools: {
       listArticleFacets: tool({
@@ -57,18 +64,6 @@ export async function POST(req: Request) {
           'article index, with result counts, so a search can be narrowed accurately.',
         parameters: z.object({}),
         execute: async () => listSearchFacetValues('the', locale),
-      }),
-      askKnowledgeBase: tool({
-        description:
-          'Ask the Solterra curated Q&A knowledge base a natural-language question. Returns an ' +
-          'editorially reviewed answer plus related question/answer pairs. Prefer this over ' +
-          'searchArticles when the user asks a direct question ("what is X", "how does Y work"), ' +
-          'since these answers are reviewed by the site team. Falls back to empty when the ' +
-          'knowledge base has nothing on the topic — use searchArticles then. English only.',
-        parameters: z.object({
-          question: z.string().describe("The user's question, phrased as a full question"),
-        }),
-        execute: async ({ question }) => querySitecoreQuestions(question, 4, locale),
       }),
       searchArticles: tool({
         description:
