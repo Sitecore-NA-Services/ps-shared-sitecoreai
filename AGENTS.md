@@ -358,7 +358,7 @@ dotnet sitecore ser validate
 - Context IDs: preview see Deploy > ps-shared-dev > Developer settings (Context: Preview), live `7ETztHPRuAjyzd6ySYVGFW`. The editing secret is on the
   environment's Developer settings page in Deploy; never commit it.
 - Editing hosts (decoupled, one environment each): nextjsstarter `21Rvl0MjNU2dKFMoBk1OEP`,
-  kit-nextjs-article-starter `5Khhfm4cOSETgUqGUdR9S2`, kit-nextjs-location-starter `2Glrfu7E2l3rVDcJMl3WW6`,
+  kit-nextjs-article-starter `2VkYzpKkVEbZABCP0qY4Hm`, kit-nextjs-location-starter `2Glrfu7E2l3rVDcJMl3WW6`,
   kit-nextjs-product-starter `2jv7ys3Oy79YPmUPRywHjR`, basic-nextjs `20RpOJMzqgt7eZvAaQcALE`,
   lighthouse `2DhihJITsVoBx35eJCagyO`, round-rock-sasquatch `4NToHFbiZDOUt9CymOzAtA`,
   angularstarter `1Ot6LCtpDnhUGX3nALZgon`

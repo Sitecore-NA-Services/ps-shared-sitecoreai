@@ -203,6 +203,20 @@ repository and the endpoint returns 409 while a repository is linked). Auto-depl
 they were: on for every editing host except `nextjsstarter`, off for the CM. The old org stays on
 `xmcloud-starter-js` `main`, untouched.
 
+## Article editing host recreated (2026-10-01)
+
+After the repository split, every deployment of `kit-nextjs-article-starter` failed at the deployment
+stage after 15 to 20 minutes, with a green build, "Winter is coming..." as the last line and no
+rendering-host log. Eight attempts ruled out the code: variable values, a `/healthz` route, Content SDK
+2.4.0 (a control host deployed fine on it), `htmlLimitedBots`, and finally the pre-fork code that had
+deployed successfully that morning. The host environment itself was broken. It was deleted
+(`cloud editinghost delete --force`; without `--force` the CLI waits on a confirmation prompt) and
+recreated with the same name: new environment ID `2VkYzpKkVEbZABCP0qY4Hm`, linked to
+`ps-shared-sitecoreai` `main` with auto-deploy through the Deploy API, eleven variables (Azure OpenAI,
+site name and language, search source GUID, sitemap host `https://article-starter-sai.vercel.app`,
+RAG threshold), no CEC variables. The authoring environment is redeployed afterwards so the Rendering
+Host item picks up the new host URL.
+
 ## Known gaps
 
 - Search: `NEXT_PUBLIC_SEARCH_*` and `SITECORE_SEARCH_*` still target the old Search domain

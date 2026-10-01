@@ -27,7 +27,7 @@
       "$note": "The Angular build bakes CSDK_PUBLIC_* into environment.prod.ts, so the browser-safe copy of the preview context ID must be set explicitly; Deploy only injects SITECORE_EDGE_CONTEXT_ID."
     },
     "kit-nextjs-article-starter": {
-      "environmentId": "5Khhfm4cOSETgUqGUdR9S2",
+      "environmentId": "2VkYzpKkVEbZABCP0qY4Hm",
       "target": "",
       "path": "./examples/kit-nextjs-article-starter",
       "dotenv": "../../examples/kit-nextjs-article-starter/.env.local",
