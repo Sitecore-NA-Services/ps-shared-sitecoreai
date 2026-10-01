@@ -63,7 +63,7 @@ export async function POST(req: Request) {
           'List the available content type, author, and topic tag values in the Solterra ' +
           'article index, with result counts, so a search can be narrowed accurately.',
         parameters: z.object({}),
-        execute: async () => listSearchFacetValues('the', locale),
+        execute: async () => listSearchFacetValues('', locale),
       }),
       searchArticles: tool({
         description:

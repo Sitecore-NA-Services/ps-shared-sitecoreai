@@ -29,6 +29,8 @@
  *     extracts neither; map them when a source provides them.
  */
 
+import type { FacetField } from '@sitecore-content-sdk/search';
+
 /**
  * Parses a small string-to-string map from JSON or from `key:value` / `key=value`
  * pairs separated by whitespace, commas or semicolons. Returns undefined when the
@@ -73,6 +75,8 @@ export type SearchFieldMap = {
   tags: string;
   /** Publish date used for newest/oldest sorting. Empty (the default) disables date sorting. */
   date: string;
+  /** Page language from og:locale ("en_US", "es_MX"); every query filters on it. Empty disables. */
+  language: string;
 };
 
 const DEFAULT_FIELDS: SearchFieldMap = {
@@ -85,6 +89,7 @@ const DEFAULT_FIELDS: SearchFieldMap = {
   author: 'author',
   tags: 'tags',
   date: '',
+  language: 'language',
 };
 
 function readFieldMap(): SearchFieldMap {
@@ -145,13 +150,44 @@ const STOP_WORDS = new Set(
  * punctuation and stop words. A query made only of stop words becomes empty,
  * which browses everything, as CEC did.
  */
-export function toSearchKeyphrase(raw: string | null | undefined): string {
+export function toSearchKeyphrase(raw: string | null | undefined, language?: string | null): string {
+  const stopWords = language?.toLowerCase().startsWith('es') ? STOP_WORDS_ES : STOP_WORDS;
   return (raw ?? '')
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s'-]+/gu, ' ')
     .split(/\s+/)
-    .filter((w) => w && !STOP_WORDS.has(w))
+    .filter((w) => w && !stopWords.has(w))
     .join(' ');
+}
+
+/** Spanish function words, so es-MX questions match on their topic words too. */
+const STOP_WORDS_ES = new Set(
+  (
+    'a al algo ante como con cual cuando de del desde donde e el ella ellos en entre era es esa ese ' +
+    'eso esta estas este esto estos fue ha hay la las le les lo los me mi mis muy ni no nos o para ' +
+    'pero por porque que quien se ser si sin sobre son su sus te tu tus un una uno unos unas y ya yo ' +
+    'qué cómo cuál dónde cuándo quién más mí sí'
+  ).split(' ')
+);
+
+/**
+ * The value the indexed `language` field holds for a Sitecore language. The field
+ * is extracted from the page's og:locale, which the page route emits as "en_US"
+ * for English and the language tag with "_" otherwise ("es-MX" -> "es_MX").
+ */
+export function toLanguageValue(language?: string | null): string {
+  if (!language || language.toLowerCase() === 'en') return 'en_US';
+  return language.replace('-', '_');
+}
+
+/**
+ * Facet filter that keeps results in the visitor's language. The source holds the
+ * English and the Spanish articles together (a source's locales cannot be changed
+ * after creation, and this one detected none), told apart by `language`.
+ */
+export function languageFacetFilter(language?: string | null): FacetField | undefined {
+  if (!SEARCH_FIELDS.language) return undefined;
+  return { name: SEARCH_FIELDS.language, filters: [{ operator: 'eq', value: toLanguageValue(language) }] };
 }
 
 /**

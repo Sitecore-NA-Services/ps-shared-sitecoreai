@@ -82,7 +82,8 @@ stay.
   the project first). Sitemap serves 174 URLs, 73 of them articles.
 - Site source **solterra-articles** created on ps-shared-dev, GUID `ea66061d-df98-4f10-9fe0-032e76e6713a`.
   Daily re-index 09:00 America/New_York; sitemap discovery found `/sitemap.xml`; language detection found
-  none, so it indexes as a single language (no `locale` is sent); crawl rules disallow paths containing
+  none, so it indexes as a single language (no `locale` is sent; since 2026-10-01 the languages are
+  told apart by a `language` field, see "Spanish articles" below); crawl rules disallow paths containing
   `/search`, `/Agent-Chat`, `/RAG-Chat`; fields: `title` (head title, searchable, sortable),
   `description` (CSS `main`, the whole article text, searchable), `author` (og `article:author`,
   filterable), `type` (og `article:section`, filterable), `tags` (og `article:tag`, Tags type,
@@ -133,6 +134,25 @@ typos, partial words, facets, combinations, browse, paging, sort) drove these ch
 - Result: identical totals on most queries, 6 to 9 of the top 10 shared, the same facet values. Known
   leftovers: CEC does not match "did" although it is not a stop word; two test pages are only in the new
   index; the preflight cache (5 s vs 24 h) is a platform header.
+
+## Spanish articles (2026-10-01)
+
+- Spanish article pages 404'd on both sites: the catch-all route received `Artículos` percent-encoded and
+  passed it to `getPage` as is. `page.tsx` now decodes each segment. The sitemap prefixes `/es-MX` on
+  Spanish URLs when one host serves both languages. The demo (`article-starter`) was redeployed once,
+  with the user's approval, from its exact code (`d36d913`) plus that fix only; all 87 Spanish sitemap
+  URLs answer 200 there.
+- New site search: the source detected no locales at creation and locales cannot be added later, so
+  both languages share one index. Added the crawl rule `Allow contains culos/` and a `language` field
+  (og:locale, filterable); the index now holds 146 documents, 73 per language. Every query (results
+  page, typeahead, answer, Agent and RAG chat) filters `language` to the page's language, Spanish
+  queries drop Spanish stop words, and the typeahead opens `/es-MX/search` from Spanish pages.
+- Verified: `/search?q=solar` 42 results, English only (unchanged); `/es-MX/search?q=energía solar` 61
+  Spanish results with Spanish facets; the Spanish typeahead lists Spanish articles; the answer route
+  answers in the page's language from that language's articles.
+- Searches returned HTTP 400 for about seven minutes, while the crawl that added `language` ran, because
+  the filtering code was already live. Index a new field before shipping code that filters on it.
+- The old CEC source still crawls the English sitemap only, so the demo has no Spanish search results.
 
 ## Order of work
 

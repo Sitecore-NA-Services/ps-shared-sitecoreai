@@ -12,7 +12,12 @@
  */
 
 import { SearchService, type FacetField, type SearchDocument } from '@sitecore-content-sdk/search';
-import { SEARCH_FIELDS, SEARCH_INDEX_ID, toSearchLocale } from '@/components/sitecore-search/search-config';
+import {
+  SEARCH_FIELDS,
+  SEARCH_INDEX_ID,
+  languageFacetFilter,
+  toSearchLocale,
+} from '@/components/sitecore-search/search-config';
 
 const CONTEXT_ID = process.env.SITECORE_EDGE_CONTEXT_ID || process.env.NEXT_PUBLIC_SITECORE_EDGE_CONTEXT_ID || '';
 
@@ -66,8 +71,11 @@ export function toSearchDoc(doc: SearchDocument): SearchDoc {
 }
 
 /** Builds the `facet.fields[]` entries for whichever filters were provided. */
-function buildFacetFields(facets?: SearchFacets): FacetField[] {
+function buildFacetFields(facets?: SearchFacets, locale?: string): FacetField[] {
   const fields: FacetField[] = [];
+  // Keep results in the visitor's language: the source holds en and es-MX articles.
+  const language = languageFacetFilter(locale);
+  if (language) fields.push(language);
   if (facets?.contentType) fields.push({ name: SEARCH_FIELDS.type, filters: [{ operator: 'eq', value: facets.contentType }] });
   if (facets?.author) fields.push({ name: SEARCH_FIELDS.author, filters: [{ operator: 'eq', value: facets.author }] });
   if (facets?.tags?.length) fields.push({ name: SEARCH_FIELDS.tags, filters: [{ operator: 'eq', value: facets.tags }] });
@@ -89,7 +97,7 @@ export async function querySitecoreSearch(
   const svc = getService();
   if (!svc) return [];
 
-  const facetFields = buildFacetFields(facets);
+  const facetFields = buildFacetFields(facets, locale);
 
   // A failed search reads to the chat model as "no articles cover this", so it
   // answers "not covered" instead of answering. Give each attempt a time limit
@@ -136,6 +144,7 @@ export async function listSearchFacetValues(keyphrase = '', locale?: string): Pr
   if (!svc) return empty;
 
   try {
+    const language = languageFacetFilter(locale);
     const { facets = [] } = await svc.search({
       searchIndexId: SEARCH_INDEX_ID,
       keyphrase: keyphrase?.trim() || undefined,
@@ -144,7 +153,12 @@ export async function listSearchFacetValues(keyphrase = '', locale?: string): Pr
       offset: 0,
       locale: toSearchLocale(locale),
       facet: {
-        fields: [{ name: SEARCH_FIELDS.type }, { name: SEARCH_FIELDS.author }, { name: SEARCH_FIELDS.tags }],
+        fields: [
+          { name: SEARCH_FIELDS.type },
+          { name: SEARCH_FIELDS.author },
+          { name: SEARCH_FIELDS.tags },
+          ...(language ? [language] : []),
+        ],
       },
     });
     const valuesOf = (name: string) => facets.find((f) => f.name === name)?.value?.map((v) => String(v.text)) ?? [];

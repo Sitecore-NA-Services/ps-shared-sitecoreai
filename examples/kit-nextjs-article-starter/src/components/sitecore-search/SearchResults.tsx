@@ -52,6 +52,7 @@ import {
   SEARCH_SORT_CHOICES,
   isSearchConfigured,
   toSearchKeyphrase,
+  languageFacetFilter,
   toSearchLocale,
   type SearchSortChoice,
 } from './search-config';
@@ -136,15 +137,16 @@ const SearchResultsList = ({
   // The whole `facet` option is memoised. The original `useSearch` kept it in an
   // effect dependency list, so a fresh object per render re-requested after every
   // response until React gave up (error #185); stable identity keeps any hook safe.
-  const facet = useMemo<{ fields: FacetField[] }>(
-    () => ({
-      fields: SEARCH_FACET_FIELDS.map((name) => {
-        const values = selected[name];
-        return values?.length ? { name, filters: [{ operator: 'eq', value: values }] } : { name };
-      }),
-    }),
-    [selected]
-  );
+  // The language filter keeps results in the page's language (the source holds en and es-MX).
+  const pageLanguage = sitecorePage.locale;
+  const facet = useMemo<{ fields: FacetField[] }>(() => {
+    const fields: FacetField[] = SEARCH_FACET_FIELDS.map((name) => {
+      const values = selected[name];
+      return values?.length ? { name, filters: [{ operator: 'eq', value: values }] } : { name };
+    });
+    const language = languageFacetFilter(pageLanguage);
+    return { fields: language ? [...fields, language] : fields };
+  }, [selected, pageLanguage]);
   const locale = toSearchLocale(sitecorePage.locale);
 
   // Embedded Search cannot sort by ascending relevance, so for that choice fetch
@@ -152,7 +154,7 @@ const SearchResultsList = ({
   const reverse = Boolean(sortChoice.reverse);
   const search = useCachedSearch({
     searchIndexId,
-    query: toSearchKeyphrase(keyphrase),
+    query: toSearchKeyphrase(keyphrase, pageLanguage),
     page: reverse ? 1 : pageNumber,
     pageSize: reverse ? REVERSE_FETCH_LIMIT : pageSize,
     sort: sortChoice.fields.length ? sortChoice.fields : undefined,
@@ -160,7 +162,9 @@ const SearchResultsList = ({
     locale,
     enabled,
   });
-  const { total, facets = [], isLoading, isError, isPreviousData } = search;
+  const { total, isLoading, isError, isPreviousData } = search;
+  // Only the facets visitors pick from; the language filter stays out of the sidebar.
+  const facets = search.facets.filter((f) => SEARCH_FACET_FIELDS.includes(f.name));
   const results = reverse
     ? [...search.results].reverse().slice((pageNumber - 1) * pageSize, pageNumber * pageSize)
     : search.results;

@@ -39,7 +39,9 @@ This starter includes:
    detail pages are missing from it.
 4. Locales: pick every language the site publishes (`en`, `es-MX`).
 5. URL pattern filters, in this order (first match wins): **Disallow contains** `/search`, `/Search`,
-   `/Agent-Chat`, `/RAG-Chat`; then **Allow contains** `/Articles/`; then **Disallow contains** `/`.
+   `/Agent-Chat`, `/RAG-Chat`; then **Allow contains** `/Articles/` and `culos/` (the Spanish pages
+   live under `/es-MX/Artículos/`, and the crawler sees the accented segment percent-encoded or not
+   depending on the link, so match the unaccented tail); then **Disallow contains** `/`.
    That indexes article pages only, like the original CEC index. Use "contains": "Begins with" never
    matched in testing. Rules are case-sensitive, so match the casing in `/sitemap.xml`.
 6. Fields: use **Test Extraction** on one article URL. Set the sources to: `title` from
@@ -48,7 +50,9 @@ This starter includes:
    `article:author`; `type` from `article:section`; `tags` (type **Tags**) from `article:topics`, the
    single comma-separated tag the layout emits, because the crawler keeps only the first of repeated
    `article:tag` tags. Mark `title`, `description` and `tags` **Searchable**, `type`, `author` and
-   `tags` **Filterable**, `title` **Sortable**. If your names differ, set `NEXT_PUBLIC_SEARCH_FIELD_MAP`.
+   `tags` **Filterable**, `title` **Sortable**. Add `language` (String, Include, **Filterable**) from Open
+   Graph `og:locale`: the page emits `en_US` or `es_MX`, and every query filters on it so each site
+   language searches only its own articles. If your names differ, set `NEXT_PUBLIC_SEARCH_FIELD_MAP`.
 7. Advanced settings: leave **semantic reranking, fuzzy search, autocomplete and result preview
    off** to match the original site (reranking added ~200 ms per search; fuzzy search matched
    look-alike words, e.g. "fox" found 76 articles; autocomplete would make the typeahead behave
@@ -57,9 +61,17 @@ This starter includes:
 8. Copy the source GUID from the source's details page (it is the GUID in the page URL).
 
 The source created for the new-org build on 2026-09-29 is **solterra-articles**,
-`ea66061d-df98-4f10-9fe0-032e76e6713a`, configured as in steps 5 to 7: 73 articles, single
-language, fields `title`, `description`, `author`, `type`, `tags`, no `image` or `date`. Those two fields are off by
-default, so this source needs no `NEXT_PUBLIC_SEARCH_FIELD_MAP` at all.
+`ea66061d-df98-4f10-9fe0-032e76e6713a`, configured as in steps 5 to 7: 146 articles (73 English,
+73 Spanish), fields `title`, `description`, `author`, `type`, `tags`, `language`, no `image` or `date`.
+Those two fields are off by default, so this source needs no `NEXT_PUBLIC_SEARCH_FIELD_MAP` at all.
+
+The source detected no locales when it was created, and a source's locales cannot be changed
+afterwards, so both languages share its single locale and are told apart by the `language` field
+instead (`languageFacetFilter()` in `search-config.ts`, applied by the results page, the typeahead
+and the server routes). Spanish queries drop Spanish stop words the way English ones drop the CEC
+list. Adding the field and the Spanish rules took one publish and one crawl (2026-10-01): while that
+crawl ran, the deployed code's filter on the not-yet-indexed field returned HTTP 400, so ship the code
+right as the crawl finishes, or add the field before the code that filters on it.
 
 Alternatives: a **Content Source** on the Article template indexes published items with their
 real fields and needs no crawl; a **Push Source** takes documents from the Ingestion Service API.
