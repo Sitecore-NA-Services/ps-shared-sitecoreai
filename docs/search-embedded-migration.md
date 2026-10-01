@@ -116,6 +116,24 @@ stay.
 - Verified after the fixes: `/search?q=solar` renders results, facets, sort and paging; a question query
   streams the AI answer above the list; the header typeahead shows preview matches.
 
+## Parity with the original site (2026-10-01)
+
+Goal: the same search experience on both sites. A 24-case comparison (keywords, multi-word, questions,
+typos, partial words, facets, combinations, browse, paging, sort) drove these changes:
+
+- Source settings: semantic reranking and fuzzy search off; crawl limited to `/Articles/`; description
+  from `og:description`; tags from a single `article:topics` meta. Median search time went from 320 ms
+  to 124 ms (CEC about 85 ms).
+- Code: CEC's 51 stop words stripped from queries, CEC's five sort choices, a response cache
+  (`useCachedSearch`), previews-only typeahead, no author line, "content" type fallback restored, and
+  the description generator reads the page's article fields when `ArticleFull` returns none.
+- Old CEC index rebuilt: every crawl since 2026-08-26 had failed on 74 Spanish URLs that 404 on the demo;
+  the Spanish sitemap was removed from the source trigger (CEC ignores exclusion patterns for sitemap
+  URLs) and the index went from 60 to 71 documents.
+- Result: identical totals on most queries, 6 to 9 of the top 10 shared, the same facet values. Known
+  leftovers: CEC does not match "did" although it is not a stop word; two test pages are only in the new
+  index; the preflight cache (5 s vs 24 h) is a platform header.
+
 ## Order of work
 
 1. Free or obtain a source config (decision needed, see blocker above).

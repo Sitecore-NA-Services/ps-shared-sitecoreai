@@ -393,7 +393,8 @@ dotnet sitecore ser validate
 - Dictionary files in `src/i18n/` or `src/dictionaries/`
 
 **Sitecore Content SDK:**
-- All 8 Next.js starters are on `@sitecore-content-sdk/nextjs` 2.3.0. No starter depends on
+- The Next.js starters are on `@sitecore-content-sdk/nextjs` 2.3.0, except `kit-nextjs-article-starter`
+  (2.4.0 plus `@sitecore-content-sdk/search` 0.5.0 for embedded Search). No starter depends on
   `@sitecore-jss/*` any more — field types (`Field`, `ImageField`, `LinkField`, etc.) and
   components (`Text`, `Image`, `Link`, `RichText`) both come from `@sitecore-content-sdk/nextjs`.
 - SDK handles editing host integration and content fetching

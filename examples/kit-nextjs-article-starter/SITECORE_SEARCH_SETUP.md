@@ -38,21 +38,27 @@ This starter includes:
    must be the same URL). Keep the discovered sitemap; add `/Articles` as a start URL if article
    detail pages are missing from it.
 4. Locales: pick every language the site publishes (`en`, `es-MX`).
-5. URL pattern filters: **Disallow** `/api`, `/_next`, `/search`, `/Search`, `/Agent-Chat`,
-   `/RAG-Chat` and anything with `sc_mode=edit`. Rules are case-sensitive and the sitemap uses the
-   Sitecore item names, so match the casing you see in `/sitemap.xml`.
-6. Fields: use **Test Extraction** on one article URL, then keep at least `title`, `description`,
-   `image`, `type`, `author`, `tags`, `date`. Mark `title`, `description` and `tags` **Searchable**,
-   `type`, `author` and `tags` **Filterable**, `title` and `date` **Sortable**. Field names are
-   yours to choose; if they differ from those defaults, set `NEXT_PUBLIC_SEARCH_FIELD_MAP`
-   (see step 3).
-7. Advanced settings: turn on semantic reranking and fuzzy search, then **Save**. Wait for the
-   first crawl to finish (the source shows *Succeeded* under Last Index).
+5. URL pattern filters, in this order (first match wins): **Disallow contains** `/search`, `/Search`,
+   `/Agent-Chat`, `/RAG-Chat`; then **Allow contains** `/Articles/`; then **Disallow contains** `/`.
+   That indexes article pages only, like the original CEC index. Use "contains": "Begins with" never
+   matched in testing. Rules are case-sensitive, so match the casing in `/sitemap.xml`.
+6. Fields: use **Test Extraction** on one article URL. Set the sources to: `title` from
+   `head > title`; `description` from Open Graph `og:description` only (the page puts summary, title,
+   author and body text there, cleanly spaced; CSS `main` runs words together); `author` from
+   `article:author`; `type` from `article:section`; `tags` (type **Tags**) from `article:topics`, the
+   single comma-separated tag the layout emits, because the crawler keeps only the first of repeated
+   `article:tag` tags. Mark `title`, `description` and `tags` **Searchable**, `type`, `author` and
+   `tags` **Filterable**, `title` **Sortable**. If your names differ, set `NEXT_PUBLIC_SEARCH_FIELD_MAP`.
+7. Advanced settings: leave **semantic reranking, fuzzy search, autocomplete and result preview
+   off** to match the original site (reranking added ~200 ms per search; fuzzy search matched
+   look-alike words, e.g. "fox" found 76 articles; autocomplete would make the typeahead behave
+   differently). **Save Draft**, **Publish**, then **Trigger Crawl**; settings only take effect after
+   a crawl.
 8. Copy the source GUID from the source's details page (it is the GUID in the page URL).
 
 The source created for the new-org build on 2026-09-29 is **solterra-articles**,
-`ea66061d-df98-4f10-9fe0-032e76e6713a`, with fields `title`, `description` (the whole `main` text),
-`author`, `type` and `tags`, single language, no `image` or `date`. Those two fields are off by
+`ea66061d-df98-4f10-9fe0-032e76e6713a`, configured as in steps 5 to 7: 73 articles, single
+language, fields `title`, `description`, `author`, `type`, `tags`, no `image` or `date`. Those two fields are off by
 default, so this source needs no `NEXT_PUBLIC_SEARCH_FIELD_MAP` at all.
 
 Alternatives: a **Content Source** on the Article template indexes published items with their
