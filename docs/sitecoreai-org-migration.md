@@ -203,6 +203,15 @@ repository and the endpoint returns 409 while a repository is linked). Auto-depl
 they were: on for every editing host except `nextjsstarter`, off for the CM. The old org stays on
 `xmcloud-starter-js` `main`, untouched.
 
+## Repository replaced to drop pre-scrub history (2026-10-01)
+
+The preview context IDs were scrubbed from the new repo's history with a rewrite, but GitHub kept the
+orphaned pre-scrub commits readable by exact commit ID. The repo was therefore renamed to
+`ps-shared-sitecoreai-prescrub` (private, archived; GitHub ID 1396385394) and a fresh public
+`ps-shared-sitecoreai` (GitHub ID 1400635584) was pushed from the clean clone. All nine Deploy
+environments were relinked to the new ID with `DELETE` + `PUT /api/environments/v1/{id}/repository`
+(auto-deploy flags unchanged). Anonymous requests for the old commit now return 404.
+
 ## Article editing host recreated (2026-10-01)
 
 After the repository split, every deployment of `kit-nextjs-article-starter` failed at the deployment

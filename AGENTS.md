@@ -367,7 +367,7 @@ dotnet sitecore ser validate
   with the old IDs above if you need the old CM through the CLI again.
 - **Two repositories since 2026-09-29.** The old org keeps building `Sitecore-NA-Services/xmcloud-starter-js`
   on `main` and is left as is. The new org's project (CM plus all eight editing hosts) is linked to
-  `Sitecore-NA-Services/ps-shared-sitecoreai` on `main` (private; forked with full history, tag
+  `Sitecore-NA-Services/ps-shared-sitecoreai` on `main` (public, GitHub ID 1400635584; forked with full history, tag
   `old-org-cec-search` marks the split). All embedded-Search work goes to that repo. In this clone the
   remote is `sitecoreai` and the local branch `sitecoreai-embedded` tracks `sitecoreai/main`
   (`push.default=upstream`, so plain `git push` goes there); `origin` stays the old repo. Editing hosts
