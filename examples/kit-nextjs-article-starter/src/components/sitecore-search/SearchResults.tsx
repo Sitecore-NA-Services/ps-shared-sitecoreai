@@ -6,7 +6,8 @@
  * and inherit the site layout + design system.
  *
  * Best-practice notes (this file is a teaching reference):
- *  - Data comes from the Content SDK query hook `useSearch`. Keyphrase, paging,
+ *  - Data comes from `useCachedSearch` (the Content SDK `SearchService` plus a
+ *    response cache, matching the original site's CEC SDK). Keyphrase, paging,
  *    sorting and facet selection are ordinary React state here; the hook turns
  *    them into one request against the source and returns results, total and
  *    facet counts. Authentication is the Edge context id the app already has.
@@ -27,7 +28,6 @@ import Link from 'next/link';
 import { cva } from 'class-variance-authority';
 import { useTranslations } from 'next-intl';
 import { useSitecore } from '@sitecore-content-sdk/nextjs';
-import { useSearch } from '@sitecore-content-sdk/nextjs/search';
 import type { FacetField, SearchDocument } from '@sitecore-content-sdk/search';
 import { cn } from '@/lib/utils';
 import { dictionaryKeys } from '@/variables/dictionary';
@@ -44,12 +44,14 @@ import type { ComponentProps } from '@/lib/component-props';
 import { useLocalizeHref } from '@/lib/localize-href';
 import { useSearchField } from '@/components/search-experience/search-components/useSearchField';
 import { SearchQuestionsPanel } from './SearchQuestions';
+import { useCachedSearch } from './useCachedSearch';
 import {
   SEARCH_FACET_FIELDS,
   SEARCH_FIELDS,
   SEARCH_INDEX_ID,
   SEARCH_SORT_CHOICES,
   isSearchConfigured,
+  toSearchKeyphrase,
   toSearchLocale,
   type SearchSortChoice,
 } from './search-config';
@@ -64,13 +66,19 @@ type SearchResultsProps = ComponentProps & {
 type Translator = ReturnType<typeof useTranslations>;
 
 /** Dictionary keys for the fixed sort choices. */
-const SORT_KEYS: Record<SearchSortChoice['name'], string> = {
+const SORT_KEYS: Partial<Record<SearchSortChoice['name'], string>> = {
   relevance: dictionaryKeys.SEARCH_SORT_RELEVANCE,
+  relevance_asc: dictionaryKeys.SEARCH_SORT_RELEVANCE_ASC,
   title_asc: dictionaryKeys.SEARCH_SORT_TITLE_AZ,
   title_desc: dictionaryKeys.SEARCH_SORT_TITLE_ZA,
-  date_desc: dictionaryKeys.SEARCH_SORT_NEWEST,
-  date_asc: dictionaryKeys.SEARCH_SORT_OLDEST,
 };
+
+/** Label for a sort choice; names without a dictionary entry read as plain words, as on the CEC site. */
+const sortLabelOf = (name: SearchSortChoice['name'], t: Translator) =>
+  SORT_KEYS[name] ? t(SORT_KEYS[name] as string) : name.replace(/_/g, ' ');
+
+/** Upper bound for the reverse-relevance sort, which needs every hit at once. */
+const REVERSE_FETCH_LIMIT = 200;
 
 /** Dictionary keys for the facet fields this experience exposes. */
 const facetLabelOf = (name: string, t: Translator) => {
@@ -125,9 +133,9 @@ const SearchResultsList = ({
   const sortChoice = SEARCH_SORT_CHOICES.find((c) => c.name === sortName) ?? SEARCH_SORT_CHOICES[0];
 
   // Ask for counts on every facet field and apply the visitor's selections as `eq` filters.
-  // The whole `facet` option is memoised: `useSearch` keeps the request options in a
-  // dependency list, so a fresh object literal on every render would re-issue the
-  // request after each response and loop until React gives up (error #185).
+  // The whole `facet` option is memoised. The original `useSearch` kept it in an
+  // effect dependency list, so a fresh object per render re-requested after every
+  // response until React gave up (error #185); stable identity keeps any hook safe.
   const facet = useMemo<{ fields: FacetField[] }>(
     () => ({
       fields: SEARCH_FACET_FIELDS.map((name) => {
@@ -139,18 +147,24 @@ const SearchResultsList = ({
   );
   const locale = toSearchLocale(sitecorePage.locale);
 
-  const { results, total, totalPages, facets = [], isLoading, isError, isPreviousData } =
-    useSearch<SearchDocument>({
-      searchIndexId,
-      query: keyphrase,
-      page: pageNumber,
-      pageSize,
-      sort: sortChoice.fields.length ? sortChoice.fields : undefined,
-      facet,
-      locale,
-      enabled,
-      keepPreviousData: true,
-    });
+  // Embedded Search cannot sort by ascending relevance, so for that choice fetch
+  // every hit in relevance order and page through it reversed, client-side.
+  const reverse = Boolean(sortChoice.reverse);
+  const search = useCachedSearch({
+    searchIndexId,
+    query: toSearchKeyphrase(keyphrase),
+    page: reverse ? 1 : pageNumber,
+    pageSize: reverse ? REVERSE_FETCH_LIMIT : pageSize,
+    sort: sortChoice.fields.length ? sortChoice.fields : undefined,
+    facet,
+    locale,
+    enabled,
+  });
+  const { total, facets = [], isLoading, isError, isPreviousData } = search;
+  const results = reverse
+    ? [...search.results].reverse().slice((pageNumber - 1) * pageSize, pageNumber * pageSize)
+    : search.results;
+  const totalPages = reverse ? Math.ceil(total / pageSize) : search.totalPages;
 
   const hasSelectedFacets = Object.values(selected).some((v) => v.length > 0);
   const loading = isLoading || isPreviousData;
@@ -259,7 +273,7 @@ const SearchResultsList = ({
               <SelectContent>
                 {SEARCH_SORT_CHOICES.map((choice) => (
                   <SelectItem key={choice.name} value={choice.name}>
-                    {t(SORT_KEYS[choice.name])}
+                    {sortLabelOf(choice.name, t)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -290,7 +304,6 @@ const SearchResultsList = ({
               const title = text(doc, SEARCH_FIELDS.title) || 'Untitled';
               const description = text(doc, SEARCH_FIELDS.description);
               const type = text(doc, SEARCH_FIELDS.type);
-              const author = text(doc, SEARCH_FIELDS.author);
               return (
                 <li key={text(doc, SEARCH_FIELDS.id) || url || index}>
                   <a
@@ -310,7 +323,6 @@ const SearchResultsList = ({
                     {description && (
                       <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-600">{description}</p>
                     )}
-                    {author && <p className="mt-3 text-xs font-medium text-zinc-400">By {author}</p>}
                   </a>
                 </li>
               );
@@ -420,7 +432,7 @@ const SearchResultsContent = ({ params, fields }: SearchResultsProps) => {
             <li>
               Results come from an <strong>embedded SitecoreAI search source</strong>: a crawler that
               indexes this site from its sitemap. The page queries it with the Content SDK&apos;s{' '}
-              <code>useSearch</code> hook, authenticated by the site&apos;s Edge context id; there is
+              <code>SearchService</code>, authenticated by the site&apos;s Edge context id; there is
               no separate search API key.
             </li>
             <li>

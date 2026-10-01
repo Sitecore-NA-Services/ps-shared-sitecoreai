@@ -132,9 +132,8 @@ export const generateMetadata = async ({ params }: PageProps) => {
   // (e.g. `<meta property="article:author">`), NOT custom `name=` meta tags.
   // Next renders openGraph.authors -> article:author, openGraph.tags ->
   // article:tag (one per value), and openGraph.section -> article:section.
-  // Only pages with a content type emit article:section; embedded Search has no
-  // required `type` attribute, so pages without one simply have no type facet
-  // value instead of a meaningless "content" bucket.
+  // Pages without a content type fall back to "content", exactly as on the
+  // original CEC site, so the type facet and result badges match it.
   const tax = fields as unknown as {
     ArticleAuthor?: { value?: string };
     taxAuthor?: { name?: string };
@@ -165,7 +164,7 @@ export const generateMetadata = async ({ params }: PageProps) => {
       // -> one <meta property="article:tag" content="..."> per topic
       ...(topics.length ? { tags: topics } : {}),
       // -> <meta property="article:section" content="..."> (the content type)
-      ...(contentType ? { section: contentType } : {}),
+      section: contentType || 'content',
     },
   };
 };

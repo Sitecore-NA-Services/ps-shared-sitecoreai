@@ -1,17 +1,14 @@
 'use client';
 
 /**
- * Header preview-search (typeahead) on embedded SitecoreAI Search.
+ * Header preview search (typeahead) on embedded SitecoreAI Search.
  *
- * `useSuggest` returns query completions plus a handful of preview documents as
- * the visitor types. Submitting (Enter), picking a suggestion, or "View all
- * results" navigates to the full /search page, which runs the real query.
- *
- * Suggestions are a per-source capability: `/v1/search/suggest` answers 400
- * "suggestion is not enabled for this configuration" until the platform turns it
- * on for the source (there is no switch for it in the Search Sources UI as of
- * 2026-09). The first such error flips this component to a plain `useSearch`
- * preview (top matches, no query completions) so the typeahead still works.
+ * Shows the top matching articles as the visitor types, matching the original
+ * site's Sitecore Search (CEC) preview widget: no query completions, whole words
+ * only, CEC's stop words ignored. Submitting (Enter) or "View all results" goes to
+ * the full /search page. The source's Autocomplete setting is deliberately left
+ * off for that reason: prefix completions would make this typeahead behave
+ * differently from the original site's.
  *
  * If no search source is configured, a plain input is rendered that still routes
  * to /search on submit, so the header keeps working without search.
@@ -22,11 +19,11 @@ import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useSitecore } from '@sitecore-content-sdk/nextjs';
-import { useSearch, useSuggest } from '@sitecore-content-sdk/nextjs/search';
 import type { SearchDocument } from '@sitecore-content-sdk/search';
 import { Input } from '@/components/ui/input';
 import { dictionaryKeys } from '@/variables/dictionary';
-import { SEARCH_FIELDS, SEARCH_INDEX_ID, isSearchConfigured, toSearchLocale } from './search-config';
+import { SEARCH_FIELDS, SEARCH_INDEX_ID, isSearchConfigured, toSearchKeyphrase, toSearchLocale } from './search-config';
+import { useCachedSearch } from './useCachedSearch';
 
 const inputClass = 'rounded-full pl-9';
 const MIN_CHARS = 2;
@@ -42,52 +39,32 @@ const text = (doc: SearchDocument, field: string): string | undefined => {
   return String(v);
 };
 
-/** Typeahead backed by the source's suggest endpoint. */
-const SuggestSearch = ({ maxPreview = 6 }: { maxPreview?: number }) => {
+/**
+ * Typeahead: the top matching articles for what the visitor has typed, the same
+ * as the original site's CEC preview-search widget (no query completions, whole
+ * words only, the same stop words ignored). Repeated keystrokes for the same
+ * text are served from the shared search cache.
+ */
+const PreviewSearch = ({ maxPreview = 6 }: { maxPreview?: number }) => {
   const router = useRouter();
   const t = useTranslations();
   const { page } = useSitecore();
   const [value, setValue] = useState('');
 
   const active = value.trim().length >= MIN_CHARS;
-  const keyphrase = value.trim();
-  const locale = toSearchLocale(page.locale);
 
-  // Once the suggest endpoint rejects the source, stop calling it for the rest of
-  // the session and use a plain search as the preview. Adjusting state during
-  // render (not in an effect) is the React-sanctioned way to derive this flag.
-  const [suggestDisabled, setSuggestDisabled] = useState(false);
-
-  const suggest = useSuggest<SearchDocument>({
+  const { results, isLoading, isError } = useCachedSearch({
     searchIndexId: SEARCH_INDEX_ID,
-    query: keyphrase,
-    enabled: active && !suggestDisabled,
-    keepPreviousData: true,
-    locale,
-  });
-  if (suggest.isError && !suggestDisabled) setSuggestDisabled(true);
-
-  const fallback = useSearch<SearchDocument>({
-    searchIndexId: SEARCH_INDEX_ID,
-    query: keyphrase,
+    query: toSearchKeyphrase(value),
     pageSize: maxPreview,
-    enabled: active && suggestDisabled,
-    keepPreviousData: true,
-    locale,
+    locale: toSearchLocale(page.locale),
+    enabled: active,
   });
-
-  const querySuggestions = suggestDisabled ? [] : suggest.querySuggestions;
-  const previewResults = suggestDisabled ? fallback.results : suggest.previewResults;
-  const isLoading = suggestDisabled ? fallback.isLoading : suggest.isLoading;
-  const isError = suggestDisabled ? fallback.isError : false;
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     goToSearch(router, value);
   };
-
-  const previews = previewResults.slice(0, maxPreview);
-  const suggestions = querySuggestions.slice(0, 5);
 
   return (
     <form onSubmit={onSubmit} className="relative w-full max-w-sm">
@@ -105,25 +82,11 @@ const SuggestSearch = ({ maxPreview = 6 }: { maxPreview?: number }) => {
 
       {active && (
         <div className="border-border bg-popover text-popover-foreground absolute top-12 right-0 left-0 z-50 overflow-hidden rounded-xl border shadow-lg">
-          {isLoading && previews.length === 0 ? (
+          {isLoading ? (
             <div className="text-muted-foreground px-4 py-3 text-sm">Searching…</div>
-          ) : isError ? (
-            <div className="text-muted-foreground px-4 py-3 text-sm">Search is unavailable right now.</div>
-          ) : (
+          ) : results.length > 0 && !isError ? (
             <ul className="max-h-96 overflow-auto">
-              {suggestions.map((s) => (
-                <li key={`s-${s.text}`}>
-                  <button
-                    type="button"
-                    className="hover:bg-accent hover:text-accent-foreground block w-full px-4 py-2 text-left text-sm"
-                    onClick={() => goToSearch(router, s.queryPlusText || s.text)}
-                  >
-                    <Search className="mr-2 inline h-3 w-3 opacity-60" aria-hidden="true" />
-                    {s.queryPlusText || s.text}
-                  </button>
-                </li>
-              ))}
-              {previews.map((doc, index) => {
+              {results.map((doc, index) => {
                 const url = text(doc, SEARCH_FIELDS.url);
                 const title = text(doc, SEARCH_FIELDS.title) || 'Untitled';
                 return (
@@ -142,9 +105,6 @@ const SuggestSearch = ({ maxPreview = 6 }: { maxPreview?: number }) => {
                   </li>
                 );
               })}
-              {suggestions.length === 0 && previews.length === 0 && (
-                <li className="text-muted-foreground px-4 py-3 text-sm">No matching articles found.</li>
-              )}
               <li>
                 <button
                   type="button"
@@ -155,6 +115,8 @@ const SuggestSearch = ({ maxPreview = 6 }: { maxPreview?: number }) => {
                 </button>
               </li>
             </ul>
+          ) : (
+            <div className="text-muted-foreground px-4 py-3 text-sm">No matching articles found.</div>
           )}
         </div>
       )}
@@ -189,5 +151,5 @@ function PlainSearchInput() {
 
 export function PreviewSearchBox() {
   if (!isSearchConfigured()) return <PlainSearchInput />;
-  return <SuggestSearch />;
+  return <PreviewSearch />;
 }

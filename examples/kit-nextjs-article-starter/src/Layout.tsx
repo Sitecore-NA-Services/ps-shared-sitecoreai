@@ -45,8 +45,18 @@ const Layout = ({ page, localizedPaths = {} }: LayoutProps): JSX.Element => {
   const mainClassPageEditing = mode.isEditing ? 'editing-mode' : 'prod-mode';
   const classNamesMain = `${mainClassPageEditing} ${body.variable} ${heading.variable} main-layout`;
   const metadata = resolvePageMetadata(fields);
+  // All topic names in ONE meta tag. The embedded SitecoreAI Search site crawler
+  // keeps only the first of repeated `article:tag` tags (the CEC crawler kept them
+  // all), so the source's `tags` field reads this comma-separated value instead.
+  // React 19 hoists a <meta> rendered here into <head>.
+  const topicNames = (
+    (fields as unknown as { taxTopic?: Array<{ name?: string }> })?.taxTopic ?? []
+  )
+    .map((t) => t?.name)
+    .filter((n): n is string => !!n);
   return (
     <>
+      {topicNames.length > 0 && <meta property="article:topics" content={topicNames.join(', ')} />}
       <HtmlLang lang={layout.sitecore.context?.language} />
       <Scripts />
       <SitecoreStyles layoutData={layout} />

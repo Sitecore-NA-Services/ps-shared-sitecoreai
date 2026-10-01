@@ -99,23 +99,60 @@ export const SEARCH_FACET_FIELDS = [SEARCH_FIELDS.type, SEARCH_FIELDS.author, SE
   Boolean
 );
 
-/** Sort choices offered on the results page. `fields` empty means relevance order. */
+/**
+ * Sort choices offered on the results page, matching the five the Sitecore Search
+ * (CEC) widget offered on the original site:
+ *  - `relevance`: best match first (CEC `featured_desc`).
+ *  - `relevance_asc`: weakest match first (CEC `featured_asc`). Embedded Search has
+ *    no reverse-relevance sort, so the page fetches every hit and reverses it.
+ *  - `title_asc` / `title_desc`: CEC `name_asc` / `name_desc`.
+ *  - `relevance_then_date`: CEC returned plain relevance order for it, because
+ *    neither index has a date field; kept so the menu matches.
+ * `fields` empty means the source's own relevance order.
+ */
 export type SearchSortChoice = {
-  name: 'relevance' | 'title_asc' | 'title_desc' | 'date_desc' | 'date_asc';
+  name: 'relevance' | 'relevance_asc' | 'title_asc' | 'title_desc' | 'relevance_then_date';
   fields: { name: string; order: 'asc' | 'desc' }[];
+  /** Reverse the relevance order client-side (embedded Search cannot sort by score). */
+  reverse?: boolean;
 };
 
 export const SEARCH_SORT_CHOICES: SearchSortChoice[] = [
   { name: 'relevance', fields: [] },
+  { name: 'relevance_asc', fields: [], reverse: true },
   { name: 'title_asc', fields: [{ name: SEARCH_FIELDS.title, order: 'asc' }] },
   { name: 'title_desc', fields: [{ name: SEARCH_FIELDS.title, order: 'desc' }] },
-  ...(SEARCH_FIELDS.date
-    ? ([
-        { name: 'date_desc', fields: [{ name: SEARCH_FIELDS.date, order: 'desc' }] },
-        { name: 'date_asc', fields: [{ name: SEARCH_FIELDS.date, order: 'asc' }] },
-      ] as SearchSortChoice[])
-    : []),
+  { name: 'relevance_then_date', fields: [] },
 ];
+
+/**
+ * Words the Sitecore Search (CEC) index ignored, measured on 2026-10-01 by sending
+ * each word alone (CEC returned the whole index for these). Embedded Search has no
+ * stop-word setting and matches them literally, so "what did the fox say?" found
+ * 31 articles through "what" and "the" instead of none. Stripping the same list
+ * keeps both sites' results aligned.
+ */
+const STOP_WORDS = new Set(
+  (
+    'a an and are as at be but by for if in into is it no not of on or such that the their ' +
+    'then there these they this to was will with what do how why when where who which can my ' +
+    'we you your our me so keep get'
+  ).split(' ')
+);
+
+/**
+ * Turns what the visitor typed into the keyphrase sent to the source: drops
+ * punctuation and stop words. A query made only of stop words becomes empty,
+ * which browses everything, as CEC did.
+ */
+export function toSearchKeyphrase(raw: string | null | undefined): string {
+  return (raw ?? '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s'-]+/gu, ' ')
+    .split(/\s+/)
+    .filter((w) => w && !STOP_WORDS.has(w))
+    .join(' ');
+}
 
 /**
  * Maps a Sitecore content language ("en", "es-MX") to the locale code the source

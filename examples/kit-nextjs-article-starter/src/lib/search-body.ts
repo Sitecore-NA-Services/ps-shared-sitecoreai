@@ -71,6 +71,17 @@ export function extractMainText(route: unknown, maxLength = 6000): string {
   const main = placeholders?.['headless-main'];
   walk(main ?? route, 0);
 
+  // Article pages render their body from the page's own fields. In the old org the
+  // ArticleFull rendering's GraphQL query copied them into the component
+  // ("externalFields"), so the walk above found them; in the new org that query
+  // returns nothing and the component reads the route fields directly, which left
+  // 62 of 73 articles with an empty description (2026-10-01). Fall back to the
+  // article fields themselves, in the same title, author, body order.
+  if (!parts.length) {
+    const fields = (r.fields ?? {}) as AnyRecord;
+    for (const name of ['ArticleTitle', 'ArticleAuthor', 'ArticleContent']) walk(fields[name], 0);
+  }
+
   const joined = parts.join(' ').replace(/\s+/g, ' ').trim();
   return joined.length > maxLength ? joined.slice(0, maxLength) : joined;
 }
