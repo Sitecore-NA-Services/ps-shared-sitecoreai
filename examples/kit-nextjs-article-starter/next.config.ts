@@ -23,9 +23,7 @@ const nextConfig: NextConfig = {
   // indexed with no title, author, type or tags. Matching every UA makes the
   // server wait for metadata before flushing, which costs nothing here because the
   // same getPage() call already gates the page body.
-  // TEMPORARILY DISABLED (2026-09-29) to test whether blocking metadata is what
-  // keeps the SitecoreAI editing host from passing its readiness probe.
-  // htmlLimitedBots: /.*/,
+  htmlLimitedBots: /.*/,
 
   // Disable the X-Powered-By header. Follows security best practices.
   poweredByHeader: false,
