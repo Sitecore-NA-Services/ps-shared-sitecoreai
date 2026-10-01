@@ -54,6 +54,36 @@ function absolutizeUrls(xml: string, base: string): string {
     .replace(/(hreflang="[^"]*"\s+href=")(\/[^"]*)(")/g, `$1${base}$2$3`);
 }
 
+/**
+ * Single-host setup (no per-language domain, e.g. article-starter-sai): the host
+ * serves its default language without a prefix and every other language under
+ * /<locale> (next-intl "as-needed" routing). Edge lists the Spanish variants as
+ * /Artículos/... with no prefix, which 404 on this host, so prefix every <loc> and
+ * hreflang href whose language is not the host's own (2026-10-01: all 73 Spanish
+ * articles were listed at 404 URLs).
+ */
+function prefixOtherLanguages(xml: string, hostLang: string): string {
+  const own = hostLang.toLowerCase();
+  const withPrefix = (url: string, lang: string) =>
+    url.replace(/^(https?:\/\/[^/]+)?(\/.*)?$/, (_m, origin = '', path = '/') =>
+      path.toLowerCase().startsWith(`/${lang.toLowerCase()}/`) || path.toLowerCase() === `/${lang.toLowerCase()}`
+        ? `${origin}${path}`
+        : `${origin}/${lang}${path === '/' ? '' : path}`
+    );
+  return xml.replace(/<url>[\s\S]*?<\/url>/g, (block) => {
+    const loc = block.match(/<loc>([^<]*)<\/loc>/)?.[1];
+    const alternates = [...block.matchAll(/hreflang="([^"]+)"\s+href="([^"]*)"/g)];
+    const locLang = alternates.find(([, , href]) => pathOf(href) === pathOf(loc))?.[1];
+    let out = block;
+    if (loc && locLang && locLang !== 'x-default' && locLang.toLowerCase() !== own) {
+      out = out.replace(`<loc>${loc}</loc>`, `<loc>${withPrefix(loc, locLang)}</loc>`);
+    }
+    return out.replace(/hreflang="([^"]+)"(\s+)href="([^"]*)"/g, (m, lang: string, sp: string, href: string) =>
+      lang === 'x-default' || lang.toLowerCase() === own ? m : `hreflang="${lang}"${sp}href="${withPrefix(href, lang)}"`
+    );
+  });
+}
+
 export async function GET(request: NextRequest) {
   const response = await sitemapHandler.GET(request);
   if (!response.ok) return response;
@@ -69,7 +99,11 @@ export async function GET(request: NextRequest) {
     (s) => s.hostName === reqHost
   );
   if (siteEntry?.language) {
+    // This host is registered for one language: list only that language.
     xml = filterToSiteLanguage(xml, siteEntry.language);
+  } else {
+    // Single host for all languages: other languages live under /<locale>.
+    xml = prefixOtherLanguages(xml, process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE || 'en');
   }
 
   // If Edge baked in the canonical host (absolute URLs), swap it for the request host.

@@ -25,6 +25,21 @@ type PageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
+/**
+ * Catch-all segments arrive URL-encoded ("Art%C3%ADculos"), but Sitecore routes
+ * are matched on the decoded item name ("Artículos"), so every Spanish article
+ * (and any other non-ASCII path) returned 404. Decode before fetching.
+ */
+function decodePath(path?: string[]): string[] {
+  return (path ?? []).map((segment) => {
+    try {
+      return decodeURIComponent(segment);
+    } catch {
+      return segment;
+    }
+  });
+}
+
 export default async function Page({ params, searchParams }: PageProps) {
   const { site, locale, path } = await params;
   const draft = await draftMode();
@@ -42,7 +57,7 @@ export default async function Page({ params, searchParams }: PageProps) {
       page = await client.getPreview(editingParams);
     }
   } else {
-    page = await client.getPage(path ?? [], { site, locale });
+    page = await client.getPage(decodePath(path), { site, locale });
   }
 
   // If the page is not found, return a 404
@@ -104,7 +119,7 @@ export const generateMetadata = async ({ params }: PageProps) => {
   const { path, site, locale } = await params;
 
   // The same call as for rendering the page. Should be cached by default react behavior
-  const page = await client.getPage(path ?? [], { site, locale });
+  const page = await client.getPage(decodePath(path), { site, locale });
   const fields = page?.layout.sitecore.route?.fields as RouteFields;
   const pagePath = path?.length ? `/${path.join('/')}` : '/';
   const canonicalUrl = `${url}${pagePath}`;
