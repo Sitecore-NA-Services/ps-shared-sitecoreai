@@ -23,3 +23,6 @@ build/
 # content-transfer tooling: credentials and per-run reports
 tools/content-transfer/.env.local
 tools/content-transfer/runs/
+
+# Browser-automation logs written by the Playwright MCP server
+.playwright-mcp/

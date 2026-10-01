@@ -15,29 +15,25 @@ SharedFields:
   Value: |
     query ArticleFull($datasource: String!, $contextItem: String!, $language: String!) {
       datasource: item(path: $datasource, language: $language) {
-        ... on ArticleData {
-          articleTitle {
-            jsonValue
-          }
-          articleAuthor {
-            jsonValue
-          }
-          articleContent {
-            jsonValue
-          }
+        articleTitle: field(name: "ArticleTitle") {
+          jsonValue
+        }
+        articleAuthor: field(name: "ArticleAuthor") {
+          jsonValue
+        }
+        articleContent: field(name: "ArticleContent") {
+          jsonValue
         }
       }
       externalFields: item(path: $contextItem, language: $language) {
-        ... on ArticlePage {
-          articleTitle {
-            jsonValue
-          }
-          articleAuthor {
-            jsonValue
-          }
-          articleContent {
-            jsonValue
-          }
+        articleTitle: field(name: "ArticleTitle") {
+          jsonValue
+        }
+        articleAuthor: field(name: "ArticleAuthor") {
+          jsonValue
+        }
+        articleContent: field(name: "ArticleContent") {
+          jsonValue
         }
       }
     }

@@ -34,6 +34,10 @@ export type SearchDoc = {
   relevanceScore?: number;
 };
 
+/** Per-attempt time limit and attempt count for server-side searches. */
+const SEARCH_TIMEOUT_MS = 6000;
+const SEARCH_ATTEMPTS = 2;
+
 /** Facet filters supported by the source's filterable fields. */
 export type SearchFacets = {
   /** Filters on the content type field (e.g. "Project Update", "Case Study"). */
@@ -87,20 +91,32 @@ export async function querySitecoreSearch(
 
   const facetFields = buildFacetFields(facets);
 
-  try {
-    const { results } = await svc.search({
-      searchIndexId: SEARCH_INDEX_ID,
-      keyphrase: keyphrase?.trim() || undefined,
-      limit,
-      offset: 0,
-      locale: toSearchLocale(locale),
-      ...(facetFields.length ? { facet: { fields: facetFields } } : {}),
-    });
-    return results.map(toSearchDoc);
-  } catch (error) {
-    console.warn('[sitecore-search] search failed', error instanceof Error ? error.message : error);
-    return [];
+  // A failed search reads to the chat model as "no articles cover this", so it
+  // answers "not covered" instead of answering. Give each attempt a time limit
+  // and retry once before giving up (2026-10-01: one RAG Chat request stalled for
+  // 30 s and declined a question its top article answered).
+  for (let attempt = 1; attempt <= SEARCH_ATTEMPTS; attempt++) {
+    try {
+      const { results } = await svc.search(
+        {
+          searchIndexId: SEARCH_INDEX_ID,
+          keyphrase: keyphrase?.trim() || undefined,
+          limit,
+          offset: 0,
+          locale: toSearchLocale(locale),
+          ...(facetFields.length ? { facet: { fields: facetFields } } : {}),
+        },
+        { signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS) }
+      );
+      return results.map(toSearchDoc);
+    } catch (error) {
+      console.warn(
+        `[sitecore-search] search attempt ${attempt} failed`,
+        error instanceof Error ? error.message : error
+      );
+    }
   }
+  return [];
 }
 
 export type FacetValues = {
