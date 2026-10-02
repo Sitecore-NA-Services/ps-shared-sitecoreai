@@ -101,6 +101,20 @@ class SampleParamPersonalizeProxy extends PersonalizeProxy {
     console.log('[Personalize Proxy] Experience params:', JSON.stringify(params, null, 2));
     return params;
   }
+
+  // Personalize returns null for a flow it does not know (e.g. page variants Edge still lists
+  // after the page's own flow is gone). The SDK reads `.variantId` off that null inside one
+  // Promise.all, so a single orphaned flow throws away every other variant on the page.
+  protected async personalize(
+    args: Parameters<PersonalizeProxy['personalize']>[0]
+  ): ReturnType<PersonalizeProxy['personalize']> {
+    const result = await super.personalize(args);
+    if (!result) {
+      console.warn('[Personalize Proxy] No result for flow', args.friendlyId);
+      return { variantId: '' };
+    }
+    return result;
+  }
 }
 
 export default function proxy(req: NextRequest, event: NextFetchEvent) {
