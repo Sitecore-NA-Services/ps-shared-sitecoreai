@@ -10,6 +10,7 @@ import Layout, { RouteFields } from 'src/Layout';
 import Providers from 'src/Providers';
 import { NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
+import { buildPageUrl, resolveSiteOrigin } from '@/lib/site-url';
 
 type PageProps = {
   params: Promise<{
@@ -80,36 +81,24 @@ export const generateStaticParams = async () => {
 // Metadata fields for the page.
 export const generateMetadata = async ({ params }: PageProps) => {
   const headersList = await headers();
-  const host = headersList.get('host');
-  const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
-  const url = `${protocol}://${host}`;
-
   const { site, locale, path } = await params;
+  const siteOrigin = resolveSiteOrigin(headersList, site, locale);
+  const canonicalUrl = siteOrigin ? buildPageUrl(siteOrigin, path) : undefined;
   const page = await client.getPage(path ?? [], { site, locale });
+  const routeFields = page?.layout.sitecore.route?.fields as RouteFields;
   return {
-    title:
-      (
-        page?.layout.sitecore.route?.fields as RouteFields
-      )?.ogTitle?.value?.toString() || 'Page',
+    title: routeFields?.ogTitle?.value?.toString() || 'Page',
     type: 'website',
     description:
-      (
-        page?.layout.sitecore.route?.fields as RouteFields
-      )?.ogDescription?.value?.toString() || 'Sitecore Next.js Alaris Example',
+      routeFields?.ogDescription?.value?.toString() || 'Sitecore Next.js Alaris Example',
+    ...(canonicalUrl && { alternates: { canonical: canonicalUrl } }),
     openGraph: {
-      title:
-        (
-          page?.layout.sitecore.route?.fields as RouteFields
-        )?.Title?.value?.toString() || 'Page',
+      title: routeFields?.Title?.value?.toString() || 'Page',
       description:
-        (
-          page?.layout.sitecore.route?.fields as RouteFields
-        )?.ogDescription?.value?.toString() ||
+        routeFields?.ogDescription?.value?.toString() ||
         'Sitecore Next.js Alaris Example',
-      url: url,
-      images:
-        (page?.layout.sitecore.route?.fields as RouteFields)?.ogImage?.value
-          ?.src || undefined,
+      url: canonicalUrl,
+      images: routeFields?.ogImage?.value?.src || undefined,
     },
   };
 };

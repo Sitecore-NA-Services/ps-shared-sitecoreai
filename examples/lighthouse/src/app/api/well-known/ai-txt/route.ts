@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import sites from '.sitecore/sites.json';
+import scConfig from 'sitecore.config';
+import { resolveSiteOrigin } from 'lib/site-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,27 +47,17 @@ Last-Modified: ${lastModified}
 `;
 }
 
-/** Resolves the site URL from request headers or falls back to configured sites. */
-function resolveSiteUrl(request: NextRequest): string {
-  const host = request.headers.get('host') || request.headers.get('x-forwarded-host');
-  const protocol = request.headers.get('x-forwarded-proto') || 'https';
-
-  if (host) {
-    return `${protocol}://${host}`;
-  }
-
-  const defaultSite = sites?.[0];
-  if (defaultSite?.hostName) {
-    return `https://${defaultSite.hostName}`;
-  }
-
-  return request.nextUrl.origin;
-}
-
 /** GET handler that serves the ai.txt file for AI crawlers. */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const siteUrl = resolveSiteUrl(request);
+    const siteUrl = resolveSiteOrigin(
+      request.headers,
+      scConfig.defaultSite,
+      scConfig.defaultLanguage,
+    );
+    if (!siteUrl) {
+      throw new Error('No public site URL is configured for ai.txt');
+    }
     const aiTxtContent = generateAiTxtContent(siteUrl);
 
     return new NextResponse(aiTxtContent, {

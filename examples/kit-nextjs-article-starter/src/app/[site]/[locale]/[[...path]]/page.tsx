@@ -14,6 +14,7 @@ import { setRequestLocale } from 'next-intl/server';
 import { resolvePageMetadata, type RouteFields } from '@/lib/page-metadata';
 import { extractMainText } from '@/lib/search-body';
 import { getLocalizedPathPrefixes } from '@/lib/localized-paths';
+import { buildPageUrl, resolveSiteOrigin } from '@/lib/site-url';
 
 type PageProps = {
   params: Promise<{
@@ -112,17 +113,13 @@ export const generateStaticParams = async () => {
 // Metadata fields for the page.
 export const generateMetadata = async ({ params }: PageProps) => {
   const headersList = await headers();
-  const host = headersList.get('host');
-  const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
-  const url = `${protocol}://${host}`;
-
   const { path, site, locale } = await params;
+  const siteOrigin = resolveSiteOrigin(headersList, site, locale);
+  const canonicalUrl = siteOrigin ? buildPageUrl(siteOrigin, path) : undefined;
 
   // The same call as for rendering the page. Should be cached by default react behavior
   const page = await client.getPage(decodePath(path), { site, locale });
   const fields = page?.layout.sitecore.route?.fields as RouteFields;
-  const pagePath = path?.length ? `/${path.join('/')}` : '/';
-  const canonicalUrl = `${url}${pagePath}`;
   const metadata = resolvePageMetadata(fields, canonicalUrl);
 
   // The Sitecore Search crawler reads head `property=` meta (og:*) but not the page
@@ -164,7 +161,7 @@ export const generateMetadata = async ({ params }: PageProps) => {
   return {
     title: metadata.title,
     description: metadata.description || 'Sitecore Next.js App Router Example',
-    alternates: { canonical: canonicalUrl },
+    ...(canonicalUrl && { alternates: { canonical: canonicalUrl } }),
     openGraph: {
       type: 'article',
       title: metadata.ogTitle,

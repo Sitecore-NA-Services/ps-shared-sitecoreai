@@ -2,6 +2,8 @@ import { type NextRequest } from 'next/server';
 import { createSitemapRouteHandler } from '@sitecore-content-sdk/nextjs/route-handler';
 import sites from '.sitecore/sites.json';
 import client from 'lib/sitecore-client';
+import scConfig from 'sitecore.config';
+import { resolveSiteOrigin } from '@/lib/site-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,9 +90,13 @@ export async function GET(request: NextRequest) {
   const response = await sitemapHandler.GET(request);
   if (!response.ok) return response;
 
-  const reqHost =
-    request.headers.get('x-forwarded-host') || request.headers.get('host') || CANONICAL_HOST;
-  const base = `https://${reqHost}`;
+  const base =
+    resolveSiteOrigin(
+      request.headers,
+      scConfig.defaultSite,
+      process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE || scConfig.defaultLanguage,
+    ) || `https://${CANONICAL_HOST}`;
+  const reqHost = new URL(base).host;
 
   let xml = await response.text();
 

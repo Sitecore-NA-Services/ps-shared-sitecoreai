@@ -1,6 +1,6 @@
 import { isDesignLibraryPreviewData } from "@sitecore-content-sdk/nextjs/editing";
 import { notFound } from "next/navigation";
-import { draftMode } from "next/headers";
+import { draftMode, headers } from "next/headers";
 import { SiteInfo } from "@sitecore-content-sdk/nextjs";
 import sites from ".sitecore/sites.json";
 import { routing } from "src/i18n/routing";
@@ -11,6 +11,7 @@ import components from ".sitecore/component-map";
 import Providers from "src/Providers";
 import { NextIntlClientProvider } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
+import { buildPageUrl, resolveSiteOrigin } from "lib/site-url";
 
 type PageProps = {
   params: Promise<{
@@ -86,14 +87,23 @@ export const generateStaticParams = async () => {
 
 // Metadata fields for the page.
 export const generateMetadata = async ({ params }: PageProps) => {
+  const headersList = await headers();
   const { path, site, locale } = await params;
+  const siteOrigin = resolveSiteOrigin(headersList, site, locale);
+  const canonicalUrl = siteOrigin ? buildPageUrl(siteOrigin, path) : undefined;
 
   // The same call as for rendering the page. Should be cached by default react behavior
   const page = await client.getPage(path ?? [], { site, locale });
+  const title =
+    (page?.layout.sitecore.route?.fields as RouteFields)?.Title?.value?.toString() ||
+    "Page";
+
   return {
-    title:
-      (
-        page?.layout.sitecore.route?.fields as RouteFields
-      )?.Title?.value?.toString() || "Page",
+    title,
+    ...(canonicalUrl && { alternates: { canonical: canonicalUrl } }),
+    openGraph: {
+      title,
+      url: canonicalUrl,
+    },
   };
 };

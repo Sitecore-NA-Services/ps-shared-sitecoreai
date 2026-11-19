@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import scConfig from 'sitecore.config';
+import { resolveSiteOrigin } from 'lib/site-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,7 +9,14 @@ export const dynamic = 'force-dynamic';
  * Follows the llms.txt specification: https://llmstxt.org/
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const baseUrl = new URL(request.url).origin;
+  const baseUrl = resolveSiteOrigin(
+    request.headers,
+    scConfig.defaultSite,
+    scConfig.defaultLanguage,
+  );
+  if (!baseUrl) {
+    return new NextResponse('No public site URL is configured.\n', { status: 500 });
+  }
 
   const content = `# Basic Next.js Starter
 

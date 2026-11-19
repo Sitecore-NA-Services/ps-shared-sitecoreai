@@ -9,6 +9,7 @@ import SitecoreStyles from 'src/components/content-sdk/SitecoreStyles';
 
 interface LayoutProps {
   page: Page;
+  canonicalUrl?: string;
 }
 
 interface RouteFields {
@@ -16,7 +17,7 @@ interface RouteFields {
   Title?: Field;
 }
 
-const Layout = ({ page }: LayoutProps): JSX.Element => {
+const Layout = ({ page, canonicalUrl }: LayoutProps): JSX.Element => {
   const { layout, mode } = page;
   const { route } = layout.sitecore;
   const fields = route?.fields as RouteFields;
@@ -28,6 +29,8 @@ const Layout = ({ page }: LayoutProps): JSX.Element => {
       <SitecoreStyles layoutData={layout} />
       <Head>
         <title>{fields?.Title?.value?.toString() || 'Page'}</title>
+        {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+        {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
         <link rel="icon" href="/favicon.ico" />
       </Head>
 

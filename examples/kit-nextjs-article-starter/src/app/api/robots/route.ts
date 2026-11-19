@@ -1,3 +1,6 @@
+import scConfig from 'sitecore.config';
+import { resolveSiteOrigin } from '@/lib/site-url';
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -9,10 +12,12 @@ export const dynamic = 'force-dynamic';
  */
 
 export async function GET(request: Request) {
-  const host =
-    request.headers.get('x-forwarded-host') || request.headers.get('host')?.split(':')[0] || 'article-starter.vercel.app';
-  const protocol = request.headers.get('x-forwarded-proto') || 'https';
-  const baseUrl = `${protocol}://${host}`;
+  const baseUrl =
+    resolveSiteOrigin(
+      request.headers,
+      scConfig.defaultSite,
+      process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE || scConfig.defaultLanguage,
+    ) || 'https://article-starter.vercel.app';
 
   const robots = `User-agent: *\nAllow: /\nSitemap: ${baseUrl}/sitemap.xml`;
 

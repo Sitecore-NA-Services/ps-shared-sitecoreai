@@ -3,6 +3,8 @@ import { SiteResolver, type SiteInfo } from '@sitecore-content-sdk/nextjs';
 import type { SitemapXmlOptions } from '@sitecore-content-sdk/content/client';
 import client from 'lib/sitecore-client';
 import sites from '.sitecore/sites.json';
+import scConfig from 'sitecore.config';
+import { resolveSiteOrigin } from 'lib/site-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,13 +46,17 @@ function getSitemapOptions(request: NextRequest): SitemapXmlOptions {
     (s) => ({ name: s.name, hostName: s.hostName ?? '*', language: s.language ?? 'en' })
   );
   const siteResolver = new SiteResolver(sitesNormalized);
-  const reqHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
-  const forwardedProto = request.headers.get('x-forwarded-proto');
-  const reqProtocol = forwardedProto
-    ? forwardedProto.split(',')[0].trim()
-    : reqHost.includes('localhost')
-      ? new URL(request.url).protocol.replace(':', '')
-      : 'https';
+  const origin = resolveSiteOrigin(
+    request.headers,
+    scConfig.defaultSite,
+    scConfig.defaultLanguage,
+  );
+  if (!origin) {
+    throw new Error('No public site URL is configured for the sitemap');
+  }
+  const publicUrl = new URL(origin);
+  const reqHost = publicUrl.host;
+  const reqProtocol = publicUrl.protocol.replace(':', '');
   const site = siteResolver.getByHost(reqHost);
   return {
     reqHost,
@@ -88,9 +94,8 @@ function parseSitemapIndexLocs(xml: string): string[] {
 
 // Fetches sitemap via SitecoreClient.getSiteMap (Data fetching API), filters URLs, and returns LLM-optimized XML sitemap
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const options = getSitemapOptions(request);
-
   try {
+    const options = getSitemapOptions(request);
     let urls: { loc: string; lastmod?: string; changefreq?: string; priority?: string }[] = [];
 
     try {
@@ -118,14 +123,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const today = new Date().toISOString().split('T')[0];
-    let baseUrl = `${options.reqProtocol}://${options.reqHost}`;
-    if (urls.length > 0) {
+    const baseUrl = `${options.reqProtocol}://${options.reqHost}`;
+    urls = urls.map((url) => {
       try {
-        baseUrl = new URL(urls[0].loc).origin;
+        const parsed = new URL(url.loc);
+        return { ...url, loc: `${baseUrl}${parsed.pathname}${parsed.search}` };
       } catch {
-        // keep request-based baseUrl
+        return url;
       }
-    }
+    });
 
     const pageEntries = urls
       .filter((u) => shouldIncludeUrl(u.loc))

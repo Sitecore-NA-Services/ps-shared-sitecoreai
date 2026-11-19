@@ -11,6 +11,7 @@ import components from ".sitecore/component-map";
 import Providers from "src/Providers";
 import { NextIntlClientProvider } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
+import { buildPageUrl, resolveSiteOrigin } from "lib/site-url";
 
 // Configure dynamic rendering to avoid SSR issues with client-side hooks
 // This ensures all pages are rendered on-demand rather than pre-rendered at build time
@@ -90,15 +91,9 @@ export const generateStaticParams = async () => {
 // Metadata fields for the page.
 export const generateMetadata = async ({ params }: PageProps) => {
   const headersList = await headers();
-  const host = headersList.get("host") || "";
-  const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (host ? `${protocol}://${host}` : "");
-
   const { path, site, locale } = await params;
-
-  // Canonical URL: base URL + content path only (no site/locale segments)
-  const pathSegment = path?.length ? `/${path.join("/")}` : "";
-  const canonicalUrl = baseUrl ? `${baseUrl}${pathSegment}` : undefined;
+  const siteOrigin = resolveSiteOrigin(headersList, site, locale);
+  const canonicalUrl = siteOrigin ? buildPageUrl(siteOrigin, path) : undefined;
 
   // The same call as for rendering the page. Should be cached by default react behavior
   const page = await client.getPage(path ?? [], { site, locale });

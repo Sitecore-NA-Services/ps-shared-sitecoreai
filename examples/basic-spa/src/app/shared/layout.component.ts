@@ -1,5 +1,5 @@
 import { Component, PLATFORM_ID, Renderer2, input, computed, effect, inject } from '@angular/core';
-import { Title } from '@angular/platform-browser';
+import { Meta, Title } from '@angular/platform-browser';
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import {
   Page,
@@ -8,6 +8,7 @@ import {
   ScPlaceholderComponent,
   SITECORE_CLIENT_TOKEN,
 } from '@sitecore-content-sdk/angular';
+import { buildPageUrl, resolveSiteOrigin } from '../lib/site-url';
 
 interface RouteFields {
   [key: string]: unknown;
@@ -60,6 +61,7 @@ export class LayoutComponent {
   });
 
   private readonly titleService = inject(Title);
+  private readonly metaService = inject(Meta);
   private readonly sitecoreClient = inject(SITECORE_CLIENT_TOKEN, { optional: true });
   private readonly document = inject(DOCUMENT);
   private readonly renderer = inject(Renderer2);
@@ -72,6 +74,20 @@ export class LayoutComponent {
         const fields = route.fields as RouteFields | undefined;
         const title = fields?.Title?.value ?? 'Content SDK Page';
         this.titleService.setTitle(title);
+        const origin = resolveSiteOrigin(this.document.location?.origin);
+        if (origin) {
+          const canonicalUrl = buildPageUrl(origin, this.document.location?.pathname || '/');
+          this.metaService.updateTag({ property: 'og:url', content: canonicalUrl });
+          let canonical = this.document.head.querySelector<HTMLLinkElement>(
+            'link[rel="canonical"]',
+          );
+          if (!canonical) {
+            canonical = this.renderer.createElement('link');
+            this.renderer.setAttribute(canonical, 'rel', 'canonical');
+            this.renderer.appendChild(this.document.head, canonical);
+          }
+          this.renderer.setAttribute(canonical, 'href', canonicalUrl);
+        }
       }
     });
 

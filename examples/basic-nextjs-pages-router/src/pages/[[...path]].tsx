@@ -15,8 +15,13 @@ import { isDesignLibraryPreviewData } from '@sitecore-content-sdk/nextjs/editing
 import client from 'lib/sitecore-client';
 import components from '.sitecore/component-map';
 import scConfig from 'sitecore.config';
+import { buildPageUrl, resolveSiteOrigin } from 'lib/site-url';
 
-const SitecorePage = ({ page, notFound, componentProps }: SitecorePageProps): JSX.Element => {
+interface PageProps extends SitecorePageProps {
+  canonicalUrl?: string;
+}
+
+const SitecorePage = ({ page, notFound, componentProps, canonicalUrl }: PageProps): JSX.Element => {
   useEffect(() => {
     // Since Sitecore Editor does not support Fast Refresh, need to refresh editor chromes after Fast Refresh finished
     handleEditorFastRefresh();
@@ -30,7 +35,7 @@ const SitecorePage = ({ page, notFound, componentProps }: SitecorePageProps): JS
   return (
     <ComponentPropsContext value={componentProps || {}}>
       <SitecoreProvider componentMap={components} api={scConfig.api} page={page}>
-        <Layout page={page} />
+        <Layout page={page} canonicalUrl={canonicalUrl} />
       </SitecoreProvider>
     </ComponentPropsContext>
   );
@@ -86,8 +91,10 @@ export const getStaticProps: GetStaticProps = async (context) => {
       : await client.getPage(path, { locale: context.locale });
   }
   if (page) {
+    const siteOrigin = resolveSiteOrigin(page.siteName, page.locale);
     props = {
       page,
+      canonicalUrl: siteOrigin ? buildPageUrl(siteOrigin, path) : undefined,
       dictionary: await client.getDictionary({
         site: page.siteName,
         locale: page.locale,

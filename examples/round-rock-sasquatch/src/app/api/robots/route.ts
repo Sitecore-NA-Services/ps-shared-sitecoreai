@@ -2,6 +2,8 @@ import { createRobotsRouteHandler } from '@sitecore-content-sdk/nextjs/route-han
 import sites from '.sitecore/sites.json';
 import client from 'lib/sitecore-client';
 import { NextRequest, NextResponse } from 'next/server';
+import scConfig from 'sitecore.config';
+import { resolveSiteOrigin } from 'lib/site-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -128,6 +130,15 @@ Sitemap: ${baseUrl}/sitemap-llm.xml
  * Custom GET handler that ensures AI crawlers and search engines can access the site
  */
 export async function GET(request: NextRequest) {
+  const baseUrl = resolveSiteOrigin(
+    request.headers,
+    scConfig.defaultSite,
+    scConfig.defaultLanguage,
+  );
+  if (!baseUrl) {
+    return new NextResponse('No public site URL is configured.\n', { status: 500 });
+  }
+
   try {
     // Try to get robots.txt from Sitecore first
     const response = await sitecoreGET(request);
@@ -140,7 +151,6 @@ export async function GET(request: NextRequest) {
     
     if (hasBlockingRule) {
       // Return our permissive robots.txt with AI crawler allowances
-      const baseUrl = new URL(request.url).origin;
       return new NextResponse(generateRobotsContent(baseUrl), {
         headers: {
           'Content-Type': 'text/plain',
@@ -150,7 +160,6 @@ export async function GET(request: NextRequest) {
     }
 
     // If Sitecore's robots.txt allows crawling, append AI bot rules and sitemap
-    const baseUrl = new URL(request.url).origin;
     const enhancedRobots = ensureAICrawlerAccess(text, baseUrl);
 
     return new NextResponse(enhancedRobots, {
@@ -162,8 +171,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     // If Sitecore fails, return our permissive robots.txt
     console.error('Error fetching robots.txt from Sitecore:', error);
-    const baseUrl = new URL(request.url).origin;
-
     return new NextResponse(generateRobotsContent(baseUrl), {
       headers: {
         'Content-Type': 'text/plain',
