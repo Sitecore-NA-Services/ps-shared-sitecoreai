@@ -1,5 +1,5 @@
 import type React from 'react';
-import { Field, Text, useSitecore } from '@sitecore-content-sdk/nextjs';
+import { Field, Text } from '@sitecore-content-sdk/nextjs';
 import { ComponentProps } from '@/lib/component-props';
 import { cn } from '@/lib/utils';
 import { NoDataFallback } from '@/utils/NoDataFallback';
@@ -12,12 +12,11 @@ interface QuoteProps extends ComponentProps {
   fields?: QuoteFields;
 }
 
-export const Default: React.FC<QuoteProps> = ({ fields, params }) => {
-  const { page } = useSitecore();
+export const Default: React.FC<QuoteProps> = ({ fields, params, page }) => {
   const { subCopy } = fields ?? {};
   const id = params?.RenderingIdentifier;
 
-  if (!subCopy && !page.mode.isEditing) {
+  if (!subCopy && !page?.mode?.isEditing) {
     return <NoDataFallback componentName="Quote" />;
   }
 
