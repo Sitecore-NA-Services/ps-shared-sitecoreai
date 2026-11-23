@@ -1,0 +1,20 @@
+﻿---
+ID: "a8f4f781-215b-4e82-8c1e-afaf046f525f"
+Parent: "a150f913-32f3-49d8-bc80-2cd36ee6c458"
+Template: "ab86861a-6030-46c5-b394-e8f99e8b87db"
+Path: "/sitecore/templates/Project/click-click-launch/Components/Page Content/Quote Folder"
+SharedFields:
+  - ID: "06d5295c-ed2f-4a54-9bf2-26228d113318"
+    Hint: __Icon
+    Value: Office/32x32/folder.png
+  - ID: "f7d48a55-2158-4f02-9356-756654404f73"
+    Hint: __Standard values
+    Value: "{9D894D3B-ADFF-404C-BFE1-3F8BEB8EA0A8}"
+Languages:
+  - Language: en
+    Versions:
+      - Version: 1
+        Fields:
+          - ID: "25bed78c-4957-4165-998a-ca1b52f67497"
+            Hint: __Created
+            Value: 20261123T140000Z

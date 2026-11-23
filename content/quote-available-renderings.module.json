@@ -1,0 +1,21 @@
+{
+  "$schema": "../.sitecore/schemas/ModuleFile.schema.json",
+  "namespace": "ArticleStarter.quote-available-renderings",
+  "items": {
+    "path": "quote-available-renderings/items",
+    "includes": [
+      {
+        "name": "solterra-page-content",
+        "path": "/sitecore/content/nextjs-article_starter/solterra/Presentation/Available Renderings/Page Content",
+        "scope": "singleItem",
+        "allowedPushOperations": "CreateAndUpdate"
+      },
+      {
+        "name": "solterra2-page-content",
+        "path": "/sitecore/content/nextjs-article_starter/solterra2/Presentation/Available Renderings/Page Content",
+        "scope": "singleItem",
+        "allowedPushOperations": "CreateAndUpdate"
+      }
+    ]
+  }
+}

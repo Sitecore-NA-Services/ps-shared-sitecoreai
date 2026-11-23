@@ -1,0 +1,17 @@
+﻿---
+ID: "cc542ef0-2fa3-4069-88a8-8795b7d536e0"
+Parent: "0beea775-efea-488b-b691-e582ccc1377a"
+Template: "0beea775-efea-488b-b691-e582ccc1377a"
+Path: "/sitecore/templates/Project/click-click-launch/Components/Page Content/Quote/__Standard Values"
+SharedFields:
+  - ID: "ca9b9f52-4fb0-4f87-a79f-24dea62cda65"
+    Hint: __Default workflow
+    Value: "{A053ED9F-4099-4682-9411-2B4C98E481E4}"
+Languages:
+  - Language: en
+    Versions:
+      - Version: 1
+        Fields:
+          - ID: "25bed78c-4957-4165-998a-ca1b52f67497"
+            Hint: __Created
+            Value: 20261123T140000Z

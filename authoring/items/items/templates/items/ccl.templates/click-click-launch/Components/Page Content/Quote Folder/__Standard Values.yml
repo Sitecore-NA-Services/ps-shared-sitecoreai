@@ -1,0 +1,19 @@
+﻿---
+ID: "9d894d3b-adff-404c-bfe1-3f8beb8ea0a8"
+Parent: "a8f4f781-215b-4e82-8c1e-afaf046f525f"
+Template: "a8f4f781-215b-4e82-8c1e-afaf046f525f"
+Path: "/sitecore/templates/Project/click-click-launch/Components/Page Content/Quote Folder/__Standard Values"
+SharedFields:
+  - ID: "1172f251-dad4-4efb-a329-0c63500e4f1e"
+    Hint: __Masters
+    Value: |
+      {0BEEA775-EFEA-488B-B691-E582CCC1377A}
+      {A8F4F781-215B-4E82-8C1E-AFAF046F525F}
+Languages:
+  - Language: en
+    Versions:
+      - Version: 1
+        Fields:
+          - ID: "25bed78c-4957-4165-998a-ca1b52f67497"
+            Hint: __Created
+            Value: 20261123T140000Z

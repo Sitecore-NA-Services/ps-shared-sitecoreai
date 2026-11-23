@@ -1,0 +1,32 @@
+﻿---
+ID: "e488257c-c8a2-45f5-9dc8-b0f63969105c"
+Parent: "372fefa0-5f01-4dea-a4f1-f9f0059b2920"
+Template: "04646a89-996f-4ee7-878a-ffdbf1f0ef0d"
+Path: "/sitecore/layout/Renderings/Project/click-click-launch/Page Content/Quote"
+SharedFields:
+  - ID: "037fe404-dd19-4bf7-8e30-4dadf68b27b0"
+    Hint: componentName
+    Value: Quote
+  - ID: "06d5295c-ed2f-4a54-9bf2-26228d113318"
+    Hint: __Icon
+    Value: Office/32x32/quotation_mark.png
+  - ID: "1a7c85e5-dc0b-490d-9187-bb1dbcb4c72f"
+    Hint: Datasource Template
+    Value: "/sitecore/templates/Project/click-click-launch/Components/Page Content/Quote"
+  - ID: "7d8ae35f-9ed1-43b5-96a2-0a5f040d4e4e"
+    Hint: Open Properties after Add
+    Value: 0
+  - ID: "b5b27af1-25ef-405c-87ce-369b3a004016"
+    Hint: Datasource Location
+    Value: "query:$site/*[@@name='Data']/*[@@templatename='Quote Folder']|query:$sharedSites/*[@@name='Data']/*[@@templatename='Quote Folder']"
+  - ID: "e829c217-5e94-4306-9c48-2634b094fdc2"
+    Hint: OtherProperties
+    Value: IsAutoDatasourceRendering=true&IsRenderingsWithDynamicPlaceholders=true
+Languages:
+  - Language: en
+    Versions:
+      - Version: 1
+        Fields:
+          - ID: "25bed78c-4957-4165-998a-ca1b52f67497"
+            Hint: __Created
+            Value: 20261123T140000Z
