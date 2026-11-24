@@ -1,0 +1,41 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Solterra/Introduction" />
+
+# Solterra Storybook
+
+Design surface for the **Solterra & Co.** site (`kit-nextjs-article-starter`, Sitecore site `solterra`).
+Every story renders the **production React components** from `src/components` with Solterra styles,
+fonts and media, so a page designed here looks the same once it is created in Sitecore.
+
+## What is here
+
+- **Components** (`Solterra/Components/*`): one entry per Sitecore rendering a landing page can use.
+  Story args are written with **Sitecore field names** (for example `titleRequired`, `heroImageOptional1`),
+  not React prop names, so they can be copied straight into a landing page manifest.
+- **Landing Pages** (`Solterra/Landing Pages`): complete pages built from those components. Each page is
+  a manifest in `src/stories/landing-pages/pages/` that can be published to Sitecore.
+- **Publishing to Sitecore**: how an agent turns a landing page into a Sitecore page with the Sitecore MCP.
+
+Use the **Page mode** toolbar button to switch between the live site rendering and how a component looks
+in Sitecore Pages while editing.
+
+## Rules for new designs
+
+1. Only use components listed under `Solterra/Components`. They are the renderings that exist in the
+   Solterra site; anything else needs a developer (React component, rendering item, template).
+2. Use only the fields documented for each component. Field names are case sensitive and some contain
+   spaces (`image 1` on Multi Promo Tabs tabs).
+3. Images must come from the Solterra media library (media keys). Links point at existing Solterra pages
+   (page keys) or absolute URLs.
+4. Every datasource on a page needs a unique `name`; they all live in the page's `Data` folder.
+5. Rendering parameters (color scheme) and non-default variants are set in Sitecore Pages after publishing.
+
+## Running it
+
+```bash
+cd examples/kit-nextjs-article-starter
+npm run storybook                 # http://localhost:6006, MCP at http://localhost:6006/mcp
+npm run build-storybook:vercel    # static Storybook + /mcp function (Vercel Build Output API)
+npm run storybook:serve           # serve that output on http://localhost:6007 (includes the Solterra tools)
+```

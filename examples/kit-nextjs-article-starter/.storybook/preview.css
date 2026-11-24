@@ -1,0 +1,5 @@
+/* The app sets these through next/font in src/Layout.tsx; Storybook loads Figtree from preview-head.html. */
+:root {
+  --font-heading: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+}

@@ -1,0 +1,94 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Solterra/Publishing to Sitecore" />
+
+# Publishing a landing page to Sitecore
+
+The deployed Storybook exposes an MCP server at `/mcp`. Besides the Storybook docs tools
+(`docs-list`, `docs-show`, `docs-show-story`) it has Solterra tools that return a **publish plan**: the
+ordered Sitecore MCP calls that create a designed page in the `solterra` site.
+
+| Tool | Use it to |
+| --- | --- |
+| `landing-pages-list` | See the landing pages designed in Storybook |
+| `landing-page-get` | Get one page's manifest, preview URL and publish plan |
+| `solterra-components-list` | See the components a page can use |
+| `solterra-component-get` | Get a component's Sitecore rendering, template, fields and child items |
+| `landing-page-plan` | Validate a manifest you wrote and get its publish plan |
+| `solterra-site-get` | Get the site, page template, containers and parent pages |
+
+## Agent workflow (Sitecore Agentic Studio)
+
+1. Call `landing-pages-list`, pick the page, call `landing-page-get` with its `id`.
+2. Stop if `plan.validation.errors` is not empty.
+3. Check the page does not exist yet: `get_content_item_by_path` with `plan.page.itemPath` and
+   `failOnNotFound: false`.
+4. Run `plan.steps` in order with the Sitecore MCP (`sitecore-marketer` tools). Each step names the tool
+   and its arguments. Values written as `{{ref.output}}` come from earlier steps, for example
+   `{{page.id}}` is the ID returned by the `create_page` step and `{{s2.fullBleed.dynamicPlaceholderId}}` is
+   the `DynamicPlaceholderId` parameter of the container added in section 2 (read it with
+   `get_components_on_page`).
+5. Report the page path, the Sitecore Pages preview link (`get_page_preview_url`) and any `manual` steps.
+   Do not publish; the page goes through review in Pages.
+
+## How a page is structured in Sitecore
+
+Solterra landing pages use the **Landing Page** template and are built in the `headless-main` placeholder.
+Each manifest section becomes container renderings with the component inside:
+
+| `section.container` | Sitecore structure | Component placeholder |
+| --- | --- | --- |
+| `full-bleed` | Container Full Bleed in `headless-main` | `/headless-main/container-fullbleed-<id>` |
+| `full-width` | Container Full Width in `headless-main` | `/headless-main/container-fullwidth-<id>` |
+| `full-bleed/full-width` | Full Width inside Full Bleed | `/headless-main/container-fullbleed-<a>/container-fullwidth-<b>` |
+
+`<id>` is the container's `DynamicPlaceholderId`, assigned by Sitecore when the container is added.
+Datasources are created in the page's `Data` folder; components with child items (accordion slides,
+promos, tabs, testimonials) get those children with `create_content_item` under their datasource.
+
+The Page Header component reads its title and intro from the page item (`pageHeaderTitle`, `pageTitle`,
+`pageSubtitle`), which the plan sets when it creates the page.
+
+## Known limits
+
+- **Hero**: the rendering's configured datasource template is not the template the component reads. The
+  plan creates the datasource from the `Hero` template (`a19c3230-c5ee-47a1-ae3f-12a1fc3c4273`) and
+  attaches it with `set_component_datasource`.
+- **Variants and rendering parameters** (for example Promo Animated `ImageRight`, color schemes) cannot be
+  set with `add_component_on_page`; the plan lists them as manual steps for Sitecore Pages.
+- **Media** must already exist in the Solterra media library. New images need `upload_asset` first and a
+  new media key in `src/stories/_support/solterra-media.ts`.
+
+## Manifest format
+
+```json
+{
+  "id": "my-page",
+  "title": "My page",
+  "description": "What the page is for",
+  "site": "solterra",
+  "page": {
+    "name": "My-Page",
+    "parent": "solutions",
+    "fields": { "pageTitle": "My page", "pageHeaderTitle": "Headline", "pageSubtitle": "<p>Intro</p>" }
+  },
+  "sections": [
+    {
+      "container": "full-width",
+      "components": [
+        {
+          "component": "CtaBanner",
+          "name": "Closing CTA",
+          "fields": {
+            "titleRequired": "Shared sun, shared savings.",
+            "linkOptional": { "text": "Reserve a seat", "page": "pricing" }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Field values: plain strings for text (HTML for Rich Text), `{ "media": "<key>" }` for images,
+`{ "text", "page" }` for internal links and `{ "text", "url" }` for external links.

@@ -32,3 +32,9 @@
 !.sitecore/component-map.ts
 !.sitecore/component-map.client.ts
 !.sitecore/import-map.ts
+
+# storybook
+/storybook-static
+/storybook-vercel-output
+*storybook.log
+

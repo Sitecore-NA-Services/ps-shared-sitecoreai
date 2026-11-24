@@ -120,8 +120,14 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@sitecore-content-sdk/cli": "^2.3.0",
+    "@storybook/addon-docs": "^10.6.8",
+    "@storybook/addon-mcp": "^10.6.8",
+    "@storybook/mcp": "^10.6.8",
+    "@storybook/nextjs-vite": "^10.6.8",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.20",
+    "@tmcp/adapter-valibot": "^0.1.7",
+    "@tmcp/transport-http": "^0.8.6",
     "@types/node": "^22.16.0",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
@@ -130,6 +136,7 @@
     "constant-case": "^3.0.4",
     "cross-env": "^10.0.0",
     "dotenv-flow": "^4.1.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.33.0",
     "eslint-config-next": "16.2.2",
     "eslint-config-prettier": "^8.10.0",
@@ -138,9 +145,13 @@
     "eslint-plugin-yaml": "^0.5.0",
     "npm-run-all2": "~8.0.1",
     "prettier": "3.6.2",
+    "storybook": "^10.6.8",
     "tailwindcss": "^4",
+    "tmcp": "^1.20.1",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "valibot": "^1.5.0",
+    "vite": "^8.3.8"
   },
   "scripts": {
     "build": "cross-env NODE_ENV=production npm-run-all --serial sitecore-tools:generate-map sitecore-tools:build patch-sites next:build",
@@ -155,7 +166,11 @@
     "sitecore-tools:generate-map": "sitecore-tools project component generate-map",
     "sitecore-tools:generate-map:watch": "sitecore-tools project component generate-map --watch",
     "dev": "cross-env NODE_ENV=development npm-run-all --serial sitecore-tools:generate-map sitecore-tools:build patch-sites --parallel next:dev sitecore-tools:generate-map:watch",
-    "start": "cross-env-shell NODE_ENV=production npm-run-all --serial build next:start"
+    "start": "cross-env-shell NODE_ENV=production npm-run-all --serial build next:start",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "build-storybook": "storybook build -o storybook-static",
+    "build-storybook:vercel": "npm run build-storybook && node scripts/build-storybook-vercel.mjs",
+    "storybook:serve": "node scripts/build-storybook-vercel.mjs --serve"
   },
   "engines": {
     "node": ">=24"

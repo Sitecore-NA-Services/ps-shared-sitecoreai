@@ -64,3 +64,11 @@ Chat, RAG Chat) built on top of the same index.
 
 To enable it, populate the `NEXT_PUBLIC_SEARCH_*` and `AZURE_OPENAI_*`
 environment variables in `.env.local` (see `SearchAgent.md` for the full list).
+
+## Storybook and landing page design
+
+`npm run storybook` starts a Storybook of the Solterra components and sample landing pages
+(http://localhost:6006). Landing pages designed there can be published into the `solterra` Sitecore
+site by an agent through the Storybook MCP server (`/mcp`) and the Sitecore MCP.
+
+- Setup, Vercel deployment and Agentic Studio connection: `STORYBOOK.md`
